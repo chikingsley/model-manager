@@ -5,7 +5,7 @@
  * Falls back to shell commands if API is not running.
  */
 
-const API_BASE = "http://localhost:8888";
+const API_BASE = "http://localhost:8890";
 
 export interface GpuInfo {
   used: number;
