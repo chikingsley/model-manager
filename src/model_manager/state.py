@@ -6,6 +6,7 @@ Handles reading/writing models.yaml and tracking active state.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -95,7 +96,12 @@ class StateManager:
     """Manages the models.yaml registry."""
 
     def __init__(self, registry_path: Path | None = None):
-        self.registry_path = registry_path or Path(__file__).parent.parent.parent / "models.yaml"
+        if registry_path:
+            self.registry_path = registry_path
+        elif env := os.getenv("MM_MODELS_FILE"):
+            self.registry_path = Path(env)
+        else:
+            self.registry_path = Path(__file__).parent.parent.parent / "models.yaml"
 
     def load(self) -> ModelsRegistry:
         """Load the registry from disk."""

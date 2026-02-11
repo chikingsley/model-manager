@@ -7,8 +7,12 @@ services:
     container_name: model-manager-api
     restart: unless-stopped
     network_mode: host
+    runtime: nvidia
     environment:
       - PYTHONUNBUFFERED=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=utility
+      - MM_MODELS_FILE=/home/simon/github/model-manager/models.yaml
       - MM_OCR_BREAKPOINT_FILE=/benchmarks/results/ocr-load/glm_ocr_budget_8192_breakpoint_timeout90.json
     volumes:
       - /home/simon:/home/simon
