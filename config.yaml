@@ -1,0 +1,38 @@
+# Model Manager Configuration
+# Only hardware and paths — everything else is auto-detected
+
+# Your hardware (auto-detected on first run, but can override)
+hardware:
+  gpu: RTX 5070
+  vram_gb: 12
+  ram_gb: 94
+  compute_cap: 12.0  # Blackwell
+
+# Paths
+paths:
+  models: /home/simon/models           # GGUF storage
+  hf_cache: ~/.cache/huggingface       # HF downloads
+  vllm_compose: /home/simon/vllm/docker-compose.yml
+  llamacpp_compose: /home/simon/github/calling-nemo/docker-compose.yml
+
+# Tunnel (optional)
+tunnel:
+  enabled: true
+  domain: peacockery.studio
+  # Subdomains configured in Cloudflare Zero Trust:
+  #   voice.peacockery.studio    → localhost:18003 (PipeCat WebRTC)
+  #   llm-voice.peacockery.studio → localhost:18000 (nemotron LLM)
+  #   vllm.peacockery.studio     → localhost:8000  (vLLM)
+
+# Named setups (optional shortcuts, not required)
+setups:
+  voice:
+    model: nemotron
+    tunnel: true
+    note: Voice assistant for calling-nemo
+
+  rag:
+    models:
+      - chat: small
+      - embeddings: small
+    note: Chat + embeddings together (~5.5GB)

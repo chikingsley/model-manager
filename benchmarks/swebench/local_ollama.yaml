@@ -1,0 +1,18 @@
+# SWE-agent config for Ollama local models
+# Usage: sweagent run-batch --config config/default.yaml --config config/local_ollama.yaml ...
+#
+# Max context on 12GB VRAM:
+#   ministral-3:14b = 32K
+#   ministral-3:8b  = 65K
+#   rnj-1:latest    = 32K
+
+agent:
+  model:
+    name: ollama/ministral-3:8b  # Change to your model
+    api_base: http://localhost:11434
+    api_key: ollama  # Required but ignored
+    per_instance_cost_limit: 0  # Disable cost tracking
+    per_instance_call_limit: 50  # Limit calls per issue
+    temperature: 0.0
+    max_input_tokens: 28000  # Leave headroom below 32K
+    max_output_tokens: 4096

@@ -1,0 +1,15 @@
+# Canonical benchmark repositories used by model-manager.
+# Use `mm benchmark sync` to keep these repos current.
+
+sources:
+  livebench:
+    path: /home/simon/github/livebench
+    description: LiveBench benchmark suite
+
+  multimodal-ocr:
+    path: /home/simon/github/MultimodalOCR
+    description: Multimodal OCR benchmark suite
+
+  swe-agent:
+    path: /home/simon/github/SWE-agent
+    description: SWE-agent harness for SWE-bench Lite

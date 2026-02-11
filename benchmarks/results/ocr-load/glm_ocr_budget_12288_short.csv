@@ -1,0 +1,3 @@
+concurrency,ok,total,errors,wall_s,req_s,p50_s,p95_s,p99_s,mean_s,timeout_errors,http_errors,other_errors
+8,8,8,0,33.191,0.241,31.473,31.473,31.473,31.687,0,0,0
+16,16,16,0,53.436,0.299,43.09,53.373,53.373,44.63,0,0,0

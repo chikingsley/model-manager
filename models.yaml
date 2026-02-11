@@ -1,0 +1,326 @@
+models:
+  qwen3-4b:
+    source: local
+    path: /home/simon/models/Qwen3-4B-Q4_K_M.gguf
+    format: gguf
+    backend: llama.cpp
+    type: chat
+    quant: Q4_K_M
+    vram_estimate: 3.0
+    context_tested: false
+    benchmarked: false
+  nanonets-ocr:
+    source: local
+    path: /home/simon/models/Nanonets-OCR-s-Q4_K_M.gguf
+    format: gguf
+    backend: llama.cpp
+    type: vision
+    quant: Q4_K_M
+    vram_estimate: 2.0
+    context_tested: false
+    benchmarked: false
+  lighton-ocr:
+    source: huggingface
+    path: lightonai/LightOnOCR-1B-1025
+    format: safetensors
+    backend: vllm
+    type: vision
+    vram_estimate: 4.0
+    notes: 87.5% key extraction - best for structured docs
+    context_tested: false
+    benchmarked: false
+  deepseek-ocr-2:
+    source: huggingface
+    path: deepseek-ai/DeepSeek-OCR-2
+    format: safetensors
+    backend: vllm
+    type: vision
+    vram_estimate: 8.5
+    notes: DeepSeek OCR2 VLM (vLLM, trust-remote-code)
+    context_tested: false
+    benchmarked: false
+  glm-vision:
+    source: local
+    path: /home/simon/models/GLM-4.6V-Flash-Q4_K_M.gguf
+    format: gguf
+    backend: llama.cpp
+    type: vision
+    quant: Q4_K_M
+    vram_estimate: 6.0
+    context_tested: false
+    benchmarked: false
+  qwen3-embed:
+    source: huggingface
+    path: Qwen/Qwen3-Embedding-4B
+    format: safetensors
+    backend: vllm
+    type: embedding
+    vram_estimate: 8.0
+    port: 8085
+    context_tested: false
+    benchmarked: false
+  glm-ocr:
+    source: ollama
+    backend: ollama
+    type: vision
+    vram_estimate: 2.5
+    notes: 1.1B F16 (zai-org/GLM-OCR) - 789/1000 OCRBench, 94.62 OmniDocBench
+    model: glm-ocr
+    num_ctx: 131072
+    context_tested: false
+    benchmarked: false
+  ministral-3:
+    source: ollama
+    backend: ollama
+    type: chat
+    vram_estimate: 11.0
+    notes: 8B chat model with 256K context, tool calling support
+    model: ministral-3:8b
+    num_ctx: 262144
+    context_tested: false
+    benchmarked: false
+  ollama-granite4-latest:
+    source: ollama
+    backend: ollama
+    type: chat
+    vram_estimate: 3.1
+    notes: 'Auto-tested: max 131,072, using 98,304'
+    model: granite4:latest
+    num_ctx: 98304
+    tested_num_ctx: 131072
+    claimed_num_ctx: 131072
+    context_tested: true
+    bench_tok_s: 186.2
+    bench_ttft_ms: 72.0
+    bench_itl_ms: 5.4
+    bench_p95_ms: 6.0
+    bench_date: '2026-02-11'
+    benchmarked: true
+    context_profile:
+    - num_ctx: 4096
+      tok_s: 184.1
+      ttft_ms: 67.0
+      vram_mb: 2734
+    - num_ctx: 8192
+      tok_s: 182.0
+      ttft_ms: 64.0
+      vram_mb: 3058
+    - num_ctx: 16384
+      tok_s: 178.0
+      ttft_ms: 107.0
+      vram_mb: 3694
+    - num_ctx: 32768
+      tok_s: 186.8
+      ttft_ms: 78.0
+      vram_mb: 5028
+    - num_ctx: 65536
+      tok_s: 184.1
+      ttft_ms: 107.0
+      vram_mb: 7324
+    - num_ctx: 131072
+      tok_s: 181.5
+      ttft_ms: 68.0
+      vram_mb: 3200
+  ollama-ministral-3-8b:
+    source: ollama
+    backend: ollama
+    type: chat
+    vram_estimate: 11.2
+    notes: 'Auto-tested: max 262,144, using 204,800'
+    model: ministral-3:8b
+    num_ctx: 204800
+    tested_num_ctx: 262144
+    claimed_num_ctx: 262144
+    context_tested: true
+    benchmarked: false
+    context_profile:
+    - num_ctx: 4096
+      tok_s: 91.1
+      ttft_ms: 123.0
+      vram_mb: 7070
+    - num_ctx: 8192
+      tok_s: 87.3
+      ttft_ms: 110.0
+      vram_mb: 7614
+    - num_ctx: 16384
+      tok_s: 84.0
+      ttft_ms: 141.0
+      vram_mb: 8700
+    - num_ctx: 32768
+      tok_s: 93.9
+      ttft_ms: 114.0
+      vram_mb: 10968
+    - num_ctx: 65536
+      tok_s: 89.0
+      ttft_ms: 148.0
+      vram_mb: 11376
+    - num_ctx: 131072
+      tok_s: 87.4
+      ttft_ms: 132.0
+      vram_mb: 11498
+    - num_ctx: 262144
+      tok_s: 90.1
+      ttft_ms: 130.0
+      vram_mb: 11422
+  ollama-ministral-3-14b:
+    source: ollama
+    backend: ollama
+    type: chat
+    vram_estimate: 10.4
+    notes: 'Auto-tested: max 262,144, using 204,800'
+    model: ministral-3:14b
+    num_ctx: 204800
+    tested_num_ctx: 262144
+    claimed_num_ctx: 262144
+    context_tested: true
+    benchmarked: false
+    context_profile:
+    - num_ctx: 4096
+      tok_s: 6.3
+      ttft_ms: 506.0
+      vram_mb: 10012
+    - num_ctx: 8192
+      tok_s: 6.2
+      ttft_ms: 463.0
+      vram_mb: 10652
+    - num_ctx: 16384
+      tok_s: 5.9
+      ttft_ms: 362.0
+      vram_mb: 10630
+    - num_ctx: 32768
+      tok_s: 6.2
+      ttft_ms: 538.0
+      vram_mb: 11432
+    - num_ctx: 65536
+      tok_s: 6.7
+      ttft_ms: 466.0
+      vram_mb: 11452
+    - num_ctx: 131072
+      tok_s: 6.2
+      ttft_ms: 634.0
+      vram_mb: 10938
+    - num_ctx: 262144
+      tok_s: 6.0
+      ttft_ms: 449.0
+      vram_mb: 10662
+  ollama-rnj-1-latest:
+    source: ollama
+    backend: ollama
+    type: chat
+    vram_estimate: 10.7
+    notes: 'Auto-tested: max 32,768, using 24,576'
+    model: rnj-1:latest
+    num_ctx: 24576
+    tested_num_ctx: 32768
+    claimed_num_ctx: 32768
+    context_tested: true
+    benchmarked: false
+    context_profile:
+    - num_ctx: 4096
+      tok_s: 76.0
+      ttft_ms: 105.0
+      vram_mb: 7215
+    - num_ctx: 8192
+      tok_s: 86.2
+      ttft_ms: 118.0
+      vram_mb: 7737
+    - num_ctx: 16384
+      tok_s: 80.3
+      ttft_ms: 107.0
+      vram_mb: 8803
+    - num_ctx: 32768
+      tok_s: 94.7
+      ttft_ms: 105.0
+      vram_mb: 10959
+  ollama-glm-ocr-latest:
+    source: ollama
+    backend: ollama
+    type: chat
+    vram_estimate: 11.1
+    notes: 'Auto-tested: max 131,072, using 98,304'
+    model: glm-ocr:latest
+    num_ctx: 98304
+    tested_num_ctx: 131072
+    claimed_num_ctx: 131072
+    context_tested: true
+    bench_tok_s: 355.5
+    bench_ttft_ms: 61.0
+    bench_itl_ms: 2.6
+    bench_p95_ms: 4.5
+    bench_date: '2026-02-11'
+    benchmarked: true
+    context_profile:
+    - num_ctx: 4096
+      tok_s: 355.0
+      ttft_ms: 2000.0
+      vram_mb: 3800
+    - num_ctx: 8192
+      tok_s: 363.5
+      ttft_ms: 83.0
+      vram_mb: 4056
+    - num_ctx: 16384
+      tok_s: 297.5
+      ttft_ms: 61.0
+      vram_mb: 4566
+    - num_ctx: 32768
+      tok_s: 365.9
+      ttft_ms: 57.0
+      vram_mb: 5606
+    - num_ctx: 65536
+      tok_s: 279.6
+      ttft_ms: 75.0
+      vram_mb: 8636
+    - num_ctx: 131072
+      tok_s: 366.0
+      ttft_ms: 79.0
+      vram_mb: 11384
+  vllm-deepseek-ocr-2:
+    source: deepseek-ai/DeepSeek-OCR-2
+    backend: vllm
+    type: chat
+    context_tested: false
+    bench_tok_s: 378.9
+    bench_ttft_ms: 18.0
+    bench_itl_ms: 2.6
+    bench_p95_ms: 3.1
+    bench_date: '2026-02-11'
+    benchmarked: true
+  vllm-glm-ocr:
+    source: zai-org/GLM-OCR
+    backend: vllm
+    type: chat
+    context_tested: false
+    bench_tok_s: 402.9
+    bench_ttft_ms: 14
+    bench_itl_ms: 2.5
+    bench_p95_ms: 3.0
+    bench_date: '2026-02-11'
+    benchmarked: true
+setups:
+  voice:
+    description: 'Voice stack (nemotron: LLM + ASR + TTS)'
+    type: stack
+  ocr:
+    description: OCR via vLLM (DeepSeek-OCR-2 default)
+    model: deepseek-ocr-2
+  ocr-lighton:
+    description: OCR via vLLM (LightOnOCR-1B-1025)
+    model: lighton-ocr
+  embeddings:
+    description: Text embeddings for RAG
+    model: qwen3-embed
+  chat:
+    description: General chat via vLLM
+    type: vllm
+  ollama-ocr:
+    description: OCR via Ollama (GLM-OCR 789/1000)
+    model: glm-ocr
+    type: ollama
+    num_ctx: 131072
+  ollama-chat:
+    description: Chat via Ollama (Ministral 256K context)
+    model: ministral-3:8b
+    type: ollama
+    num_ctx: 262144
+state:
+  active: ocr

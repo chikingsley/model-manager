@@ -1,0 +1,13 @@
+# SWE-agent config for vLLM local server
+# Usage: sweagent run-batch --config config/default.yaml --config config/local_vllm.yaml ...
+
+agent:
+  model:
+    name: openai/Qwen/Qwen2.5-7B-Instruct-AWQ  # Your vLLM model
+    api_base: http://localhost:8000/v1
+    api_key: not-needed  # Required but ignored by vLLM
+    per_instance_cost_limit: 0
+    per_instance_call_limit: 50
+    temperature: 0.0
+    max_input_tokens: 32768
+    max_output_tokens: 4096

@@ -1,0 +1,24 @@
+services:
+  model-manager-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: local/model-manager-api:latest
+    container_name: model-manager-api
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MM_OCR_BREAKPOINT_FILE=/benchmarks/results/ocr-load/glm_ocr_budget_8192_breakpoint_timeout90.json
+    volumes:
+      - /home/simon:/home/simon
+      - /home/simon/github/model-manager/benchmarks:/benchmarks:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+      python -m uvicorn model_manager.api.server:app --host 0.0.0.0 --port 8890
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8890/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

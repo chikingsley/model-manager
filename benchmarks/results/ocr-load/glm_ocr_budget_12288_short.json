@@ -1,0 +1,49 @@
+{
+  "meta": {
+    "base_url": "http://localhost:8000",
+    "endpoint": "/v1/chat/completions",
+    "model": "zai-org/GLM-OCR",
+    "image": "/home/simon/github/MultimodalOCR/OCRBench/OCRBench_Images/SROIE/image/X51006414427.jpg",
+    "prompt": "when was this receipt issued? Answer this question using the text in the image directly.",
+    "max_tokens": 128,
+    "timeout_s": 120,
+    "concurrency_points": [
+      8,
+      16
+    ],
+    "run_started_unix": 1770826233.2791483,
+    "run_finished_unix": 1770826319.9071028
+  },
+  "results": [
+    {
+      "concurrency": 8,
+      "ok": 8,
+      "total": 8,
+      "errors": 0,
+      "wall_s": 33.191,
+      "req_s": 0.241,
+      "p50_s": 31.473,
+      "p95_s": 31.473,
+      "p99_s": 31.473,
+      "mean_s": 31.687,
+      "timeout_errors": 0,
+      "http_errors": 0,
+      "other_errors": 0
+    },
+    {
+      "concurrency": 16,
+      "ok": 16,
+      "total": 16,
+      "errors": 0,
+      "wall_s": 53.436,
+      "req_s": 0.299,
+      "p50_s": 43.09,
+      "p95_s": 53.373,
+      "p99_s": 53.373,
+      "mean_s": 44.63,
+      "timeout_errors": 0,
+      "http_errors": 0,
+      "other_errors": 0
+    }
+  ]
+}

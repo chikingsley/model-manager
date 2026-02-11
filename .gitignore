@@ -1,0 +1,39 @@
+# Local env
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Tooling caches
+.mypy_cache/
+.pytype/
+
+# Benchmark outputs and generated artifacts
+benchmark_results/
+benchmarks/swebench/results/
+benchmarks/ocrbench/results
+benchmarks/ocrbench/OCRBench
+benchmarks/ocrbench/OCRBench_Images
+
+# TUI build artifacts
+tui/node_modules/
+tui/dist/
+tui/mm-tui
+
+# Misc
+.DS_Store
