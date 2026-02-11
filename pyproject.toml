@@ -5,6 +5,7 @@ description = "Zero config local LLM infrastructure. Download a model, it works.
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "docker>=7.0.0",
     "fastapi>=0.115.0",
     "uvicorn>=0.32.0",
     "pyyaml>=6.0",

@@ -8,11 +8,13 @@ This is the core logic extracted from the mm bash script.
 from __future__ import annotations
 
 import asyncio
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+import docker as docker_sdk
 import httpx
 
 if TYPE_CHECKING:
@@ -96,81 +98,99 @@ MODELS_DIR = Path("/home/simon/models")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Docker Operations (sync)
+# Docker Client (lazy singleton — talks to /var/run/docker.sock)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_client: docker_sdk.DockerClient | None = None
+
+# Docker binary path for compose commands (compose has no SDK support)
+_DOCKER_BIN: str = shutil.which("docker") or "docker"
+
+
+def _get_client() -> docker_sdk.DockerClient:
+    """Get or create a shared Docker client."""
+    global _client  # noqa: PLW0603
+    if _client is None:
+        _client = docker_sdk.from_env()
+    return _client
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Docker Operations (sync, via SDK)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 def is_running(container: str) -> bool:
     """Check if a container is running."""
-    result = subprocess.run(
-        ["docker", "ps", "--format", "{{.Names}}"],
-        capture_output=True,
-        text=True,
-    )
-    return container in result.stdout.split("\n")
+    try:
+        c = _get_client().containers.get(container)
+        return c.status == "running"
+    except (docker_sdk.errors.NotFound, docker_sdk.errors.APIError):
+        return False
 
 
 def container_exists(container: str) -> bool:
     """Check if a container exists (running or stopped)."""
-    result = subprocess.run(
-        ["docker", "ps", "-a", "--format", "{{.Names}}"],
-        capture_output=True,
-        text=True,
-    )
-    return container in result.stdout.split("\n")
+    try:
+        _get_client().containers.get(container)
+        return True
+    except docker_sdk.errors.NotFound:
+        return False
+    except docker_sdk.errors.APIError:
+        return False
 
 
 def get_health(container: str) -> HealthStatus:
     """Get container health status."""
-    if not is_running(container):
+    try:
+        c = _get_client().containers.get(container)
+    except (docker_sdk.errors.NotFound, docker_sdk.errors.APIError):
         return "not_running"
 
-    result = subprocess.run(
-        ["docker", "inspect", "--format={{.State.Health.Status}}", container],
-        capture_output=True,
-        text=True,
-    )
-    status = result.stdout.strip()
+    if c.status != "running":
+        return "not_running"
 
-    if status == "healthy":
+    health = c.attrs.get("State", {}).get("Health", {}).get("Status")
+
+    if health == "healthy":
         return "healthy"
-    if status == "starting":
+    if health == "starting":
         return "starting"
-    if status == "unhealthy":
+    if health == "unhealthy":
         return "unhealthy"
     return "none"  # No health check configured
 
 
 def docker_start(container: str) -> bool:
     """Start a stopped container."""
-    result = subprocess.run(
-        ["docker", "start", container],
-        capture_output=True,
-    )
-    return result.returncode == 0
+    try:
+        _get_client().containers.get(container).start()
+        return True
+    except (docker_sdk.errors.NotFound, docker_sdk.errors.APIError):
+        return False
 
 
 def docker_stop(container: str, timeout: int = 10) -> bool:
     """Stop a container gracefully."""
-    result = subprocess.run(
-        ["docker", "stop", "-t", str(timeout), container],
-        capture_output=True,
-    )
-    return result.returncode == 0
+    try:
+        _get_client().containers.get(container).stop(timeout=timeout)
+        return True
+    except (docker_sdk.errors.NotFound, docker_sdk.errors.APIError):
+        return False
 
 
 def docker_kill(container: str) -> bool:
     """Kill a container immediately (fast stop)."""
-    result = subprocess.run(
-        ["docker", "kill", container],
-        capture_output=True,
-    )
-    return result.returncode == 0
+    try:
+        _get_client().containers.get(container).kill()
+        return True
+    except (docker_sdk.errors.NotFound, docker_sdk.errors.APIError):
+        return False
 
 
 def compose_up(compose_dir: Path, service: str | None = None, recreate: bool = False) -> bool:
     """Run docker compose up."""
-    cmd = ["docker", "compose", "up", "-d"]
+    cmd = [_DOCKER_BIN, "compose", "up", "-d"]
     if recreate:
         cmd.append("--force-recreate")
     if service:
@@ -183,7 +203,7 @@ def compose_up(compose_dir: Path, service: str | None = None, recreate: bool = F
 def compose_down(compose_dir: Path) -> bool:
     """Run docker compose down."""
     result = subprocess.run(
-        ["docker", "compose", "down"],
+        [_DOCKER_BIN, "compose", "down"],
         cwd=compose_dir,
         capture_output=True,
     )
