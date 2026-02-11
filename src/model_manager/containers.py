@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import docker as docker_sdk
+import docker.errors
 import httpx
 
 if TYPE_CHECKING:
@@ -109,7 +110,7 @@ _DOCKER_BIN: str = shutil.which("docker") or "docker"
 
 def _get_client() -> docker_sdk.DockerClient:
     """Get or create a shared Docker client."""
-    global _client  # noqa: PLW0603
+    global _client
     if _client is None:
         _client = docker_sdk.from_env()
     return _client
