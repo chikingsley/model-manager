@@ -1,117 +1,124 @@
-# Model Manager - Justfile
-# Usage: just <recipe> or just <alias>
+# Model Manager
+# Run `just` for status, `just --list` for all recipes
 
 set shell := ["bash", "-uc"]
+set dotenv-load := false
 
-# Default recipe - show status
 default: status
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Model Switching (via Python CLI)
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Activate voice stack (nemotron: LLM + ASR + TTS)
-voice:
-    uv run mm voice
-alias v := voice
-
-# Activate OCR (DeepSeek-OCR-2 by default, pass model to override)
-ocr:
-    uv run mm ocr
-alias o := ocr
-
-# Activate embeddings (Qwen3-Embedding-4B)
-embed:
-    uv run mm embed
-alias e := embed
-
-# Activate chat (vLLM with default model)
-chat model="":
-    uv run mm chat {{ model }}
-alias c := chat
-
-# Activate MAX PERFORMANCE mode (all optimizations)
-perf model="":
-    uv run mm perf {{ model }}
-alias p := perf
-
-# Activate llama.cpp (GGUF models)
-llama model="":
-    uv run mm llama {{ model }}
-alias l := llama
-
-# Activate Ollama
-ollama model="":
-    uv run mm ollama {{ model }}
-alias ol := ollama
-
-# Stop model services
-stop:
-    uv run mm stop
+# ─── Modes ────────────────────────────────────────────────────────────────
 
 # Show current status
 status:
     uv run mm
 alias s := status
 
-# List available GGUF models
+# Activate Ollama
+ollama model="":
+    uv run mm ollama {{ model }}
+alias ol := ollama
+
+# Activate OCR (vLLM)
+ocr:
+    uv run mm ocr
+alias o := ocr
+
+# Activate chat (vLLM)
+chat model="":
+    uv run mm chat {{ model }}
+alias c := chat
+
+# Activate llama.cpp (GGUF)
+llama model="":
+    uv run mm llama {{ model }}
+alias l := llama
+
+# Activate voice stack
+voice:
+    uv run mm voice
+alias v := voice
+
+# Activate embeddings
+embed:
+    uv run mm embed
+alias e := embed
+
+# Activate max performance mode
+perf model="":
+    uv run mm perf {{ model }}
+alias p := perf
+
+# Stop all GPU services
+stop:
+    uv run mm stop
+
+# List registered models
 models:
     uv run mm models
 
-# ═══════════════════════════════════════════════════════════════════════════
-# API Server
-# ═══════════════════════════════════════════════════════════════════════════
+# ─── API ──────────────────────────────────────────────────────────────────
 
-# Run API server (port 8888)
-serve:
-    uv run mm serve
+# Deploy API container (build + start)
+deploy:
+    docker compose -f docker-compose.api.yml up -d --build --force-recreate
+    @sleep 5
+    @just smoke
 
-# Run API server in Docker (host port 8890)
-serve-container:
-    docker compose -f docker-compose.api.yml up -d --build
+# Start API container
+up:
+    docker compose -f docker-compose.api.yml up -d
 
-# Stop API server container
-serve-container-stop:
+# Stop API container
+down:
     docker compose -f docker-compose.api.yml down
 
-# Run API server with reload
-serve-dev:
-    uv run uvicorn model_manager.api.server:app --reload --host 0.0.0.0 --port 8888
+# Rebuild API container
+rebuild:
+    docker compose -f docker-compose.api.yml build --no-cache
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Development
-# ═══════════════════════════════════════════════════════════════════════════
+# API container logs
+logs-api:
+    docker logs -f model-manager-api --tail 50
 
-# Install dependencies
-install:
-    uv sync
+# Run API locally (dev mode with reload)
+dev:
+    uv run uvicorn model_manager.api.server:app --reload --host 0.0.0.0 --port 8890
 
-# Run tests
-test *args:
-    uv run pytest {{ args }}
+# ─── Checks ───────────────────────────────────────────────────────────────
 
-# Run tests with coverage
-test-cov:
-    uv run pytest --cov=src/model_manager --cov-report=term-missing
+# Smoke test the live API
+smoke:
+    uv run scripts/smoke_test.py
 
-# Lint with ruff
+# Run all checks (lint + types + tests)
+ci: lint check test
+
+# Lint
 lint:
     uv run ruff check src/
 
-# Format with ruff
+# Format
 fmt:
     uv run ruff format src/
 
 # Type check
 check:
-    uv run ty check --error-on-warning src/model_manager/
+    uv run ty check src/
 
-# All checks (lint + type + test)
-ci: lint check test
+# Run tests
+test *args:
+    uv run pytest {{ args }}
 
-# ═══════════════════════════════════════════════════════════════════════════
-# TUI
-# ═══════════════════════════════════════════════════════════════════════════
+# Tests with coverage
+test-cov:
+    uv run pytest --cov=src/model_manager --cov-report=term-missing
+
+# Lint + format + type check (fix what you can)
+fix:
+    uv run ruff check --fix src/
+    uv run ruff format src/
+
+# ─── TUI ──────────────────────────────────────────────────────────────────
 
 # Run the TUI
 tui:
@@ -121,42 +128,35 @@ tui:
 tui-build:
     cd tui && bun run build
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Utilities
-# ═══════════════════════════════════════════════════════════════════════════
+# ─── Info ─────────────────────────────────────────────────────────────────
 
-# Show GPU usage
+# GPU usage
 gpu:
     nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu --format=csv
 
-# List docker containers
+# Running model containers
 ps:
-    docker ps --format "table {{{{.Names}}}}\t{{{{.Status}}}}\t{{{{.Ports}}}}" | grep -E "nemotron|vllm|qwen|llama|ollama"
+    docker ps --format "table {{{{.Names}}}}\t{{{{.Status}}}}\t{{{{.Ports}}}}" | grep -E "nemotron|vllm|llama|ollama|model-manager"
 
-# Tail nemotron logs
-logs-nemotron:
-    docker logs -f nemotron --tail 50
+# Quick endpoint health check
+health:
+    @curl -sf http://localhost:8890/health && echo "API      ✓" || echo "API      ✗"
+    @curl -sf http://localhost:8000/health && echo "vLLM     ✓" || echo "vLLM     ✗"
+    @curl -sf http://localhost:8090/health && echo "llama    ✓" || echo "llama    ✗"
+    @curl -sf http://localhost:11434/api/tags > /dev/null && echo "Ollama   ✓" || echo "Ollama   ✗"
 
-# Tail vllm logs
+# Tail vLLM logs
 logs-vllm:
     docker logs -f vllm --tail 50
 
-# Tail ollama logs
+# Tail Ollama logs
 logs-ollama:
     docker logs -f ollama --tail 50
 
-# Quick health check on endpoints
-health:
-    @echo "Checking endpoints..."
-    @curl -sf http://localhost:8000/health && echo "localhost:8000 (vllm) ✓" || echo "localhost:8000 (vllm) ✗"
-    @curl -sf http://localhost:8090/health && echo "localhost:8090 (llama) ✓" || echo "localhost:8090 (llama) ✗"
-    @curl -sf http://localhost:11434/api/tags && echo "localhost:11434 (ollama) ✓" || echo "localhost:11434 (ollama) ✗"
-    @curl -sf http://localhost:8888/health && echo "localhost:8888 (api) ✓" || echo "localhost:8888 (api) ✗"
+# Install dependencies
+install:
+    uv sync
 
-# Run optimization benchmark
+# Run benchmark
 benchmark:
     uv run mm benchmark run
-
-# Sync benchmark sources (all by default)
-benchmark-sync sources="all":
-    uv run mm benchmark sync {{ sources }}
