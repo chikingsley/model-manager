@@ -8,6 +8,7 @@ This is the core logic extracted from the mm bash script.
 from __future__ import annotations
 
 import asyncio
+import logging
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ import httpx
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Types
@@ -197,7 +200,14 @@ def compose_up(compose_dir: Path, service: str | None = None, recreate: bool = F
     if service:
         cmd.append(service)
 
-    result = subprocess.run(cmd, cwd=compose_dir, capture_output=True)
+    result = subprocess.run(cmd, cwd=compose_dir, capture_output=True, text=True)
+    if result.returncode != 0:
+        logger.error(
+            "compose up failed (rc=%d) in %s: %s",
+            result.returncode,
+            compose_dir,
+            result.stderr.strip() or result.stdout.strip(),
+        )
     return result.returncode == 0
 
 
@@ -207,7 +217,15 @@ def compose_down(compose_dir: Path) -> bool:
         [_DOCKER_BIN, "compose", "down"],
         cwd=compose_dir,
         capture_output=True,
+        text=True,
     )
+    if result.returncode != 0:
+        logger.error(
+            "compose down failed (rc=%d) in %s: %s",
+            result.returncode,
+            compose_dir,
+            result.stderr.strip() or result.stdout.strip(),
+        )
     return result.returncode == 0
 
 
