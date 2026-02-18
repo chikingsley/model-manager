@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run
 """
 OCR concurrency/load sweep for OpenAI-compatible vision endpoints.
 

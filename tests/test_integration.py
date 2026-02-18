@@ -129,7 +129,7 @@ class TestStateManagement:
         state = StateManager()
         active = state.get_active()
 
-        assert active in ["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "none"]
+        assert active in ["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "sam3", "none"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

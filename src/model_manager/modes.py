@@ -17,6 +17,7 @@ from model_manager.config import build_runtime_config, build_vllm_env, load_conf
 from model_manager.containers import (
     LLAMA_DIR,
     MODELS_DIR,
+    SAM3_DIR,
     VLLM_DIR,
     compose_up,
     docker_kill,
@@ -38,7 +39,7 @@ from model_manager.state import ContextSpeedPoint, ModelEntry, StateManager
 # Types
 # ─────────────────────────────────────────────────────────────────────────────
 
-Mode = Literal["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "stop"]
+Mode = Literal["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "sam3", "stop"]
 
 
 @dataclass
@@ -171,7 +172,7 @@ def stop_gpu_services(exclude: list[str] | None = None) -> list[str]:
     exclude = exclude or []
     stopped = []
 
-    gpu_services = ["nemotron", "vllm", "llama-server", "ollama"]
+    gpu_services = ["nemotron", "vllm", "sam3", "llama-server", "ollama"]
 
     for service in gpu_services:
         if service not in exclude and is_running(service):
@@ -579,6 +580,31 @@ def get_vllm_mode_config(
             gpu_memory_utilization=0.85,
         )
 
+    if mode == "chat" and "nanbeige" in selected_model_lc:
+        return VllmModeConfig(
+            model=model or "Nanbeige/Nanbeige4.1-3B",
+            max_model_len=32768,
+            description="Chat (Nanbeige4.1-3B)",
+            extra_args=(
+                "--trust-remote-code",
+                "--max-num-seqs 16",
+                "--disable-log-requests",
+            ),
+            gpu_memory_utilization=0.90,
+        )
+
+    if mode == "chat" and "granite" in selected_model_lc:
+        return VllmModeConfig(
+            model=model or "ibm-granite/granite-4.0-micro",
+            max_model_len=32768,
+            description="Chat (Granite 4.0 Micro)",
+            extra_args=(
+                "--max-num-seqs 16",
+                "--disable-log-requests",
+            ),
+            gpu_memory_utilization=0.90,
+        )
+
     configs = {
         "embed": VllmModeConfig(
             model="Qwen/Qwen3-Embedding-4B",
@@ -601,11 +627,17 @@ def get_vllm_mode_config(
     return configs[mode]
 
 
-def get_vllm_runtime_mode(mode: Literal["ocr", "chat", "perf", "embed"]) -> Literal[
-    "max_performance", "multi_model"
-]:
+def get_vllm_runtime_mode(
+    mode: Literal["ocr", "chat", "perf", "embed"],
+    model: str | None = None,
+) -> Literal["max_performance", "multi_model"]:
     """Pick runtime profile for vLLM modes."""
-    return "max_performance" if mode in ("ocr", "perf") else "multi_model"
+    if mode in ("ocr", "perf"):
+        return "max_performance"
+    # Small chat models benefit from full KV offloading
+    if model and ("nanbeige" in model.lower() or "granite" in model.lower()):
+        return "max_performance"
+    return "multi_model"
 
 
 async def activate_vllm_mode(
@@ -640,7 +672,7 @@ async def activate_vllm_mode(
         quant="awq" if "awq" in target_model.lower() else None,
     )
 
-    runtime_mode = get_vllm_runtime_mode(mode)
+    runtime_mode = get_vllm_runtime_mode(mode, target_model)
     runtime = build_runtime_config(model_entry, hardware, mode=runtime_mode)
 
     # Add mode-specific extra args
@@ -699,6 +731,49 @@ async def activate_vllm_mode(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# SAM3 Mode (Official Meta Repo Service)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def activate_sam3(progress: ProgressCallback | None = None) -> ActivationResult:
+    """Activate SAM3 segmentation service."""
+
+    def report(step: str, health: str | None = None):
+        if progress:
+            progress(ActivationProgress(step=step, health=health))
+
+    report("Stopping conflicting services...")
+    stop_gpu_services(exclude=["sam3"])
+    await asyncio.sleep(1)
+
+    report("Starting SAM3 service...")
+    if is_running("sam3"):
+        compose_up(SAM3_DIR, "sam3", recreate=True)
+    else:
+        compose_up(SAM3_DIR, "sam3")
+
+    report("Waiting for model to load...", "starting")
+    healthy = await wait_for_healthy("sam3", timeout=420)
+
+    if healthy:
+        report("Ready!", "healthy")
+        StateManager().set_active("sam3")
+        return ActivationResult(
+            success=True,
+            mode="sam3",
+            message="SAM3 active (facebook/sam3)",
+            details={"endpoint": "http://localhost:8095", "model": "facebook/sam3"},
+        )
+
+    return ActivationResult(
+        success=False,
+        mode="sam3",
+        message="SAM3 service started but not healthy",
+        details={"hint": "Check logs with: docker logs sam3 --tail 200"},
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main Activation Entry Point
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -712,7 +787,7 @@ async def activate(
     Main entry point for activating a mode.
 
     Args:
-        mode: The mode to activate (voice, llama, ollama, ocr, chat, perf, embed, stop)
+        mode: The mode to activate (voice, llama, ollama, ocr, chat, perf, embed, sam3, stop)
         model: Optional model name (for llama, ollama, chat, perf)
         progress: Optional callback for progress updates
 
@@ -730,6 +805,9 @@ async def activate(
 
     if mode == "llama":
         return await activate_llama(model, progress)
+
+    if mode == "sam3":
+        return await activate_sam3(progress)
 
     if mode in ("ocr", "chat", "perf", "embed"):
         return await activate_vllm_mode(mode, model, progress)

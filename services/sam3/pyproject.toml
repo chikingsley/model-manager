@@ -1,0 +1,16 @@
+[project]
+name = "sam3-service"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "httpx>=0.28.0",
+    "numpy>=1.26,<2",
+    "pillow>=10.4.0",
+    "uvicorn[standard]>=0.32.0",
+    "sam3 @ git+https://github.com/facebookresearch/sam3.git",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

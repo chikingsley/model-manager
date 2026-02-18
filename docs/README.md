@@ -4,6 +4,7 @@
 
 - `README.md` — primary project documentation and CLI usage
 - `docs/api.md` — API docs entrypoints and operational limit endpoints
+- `docs/sam3.md` — SAM3 backend setup, activation, and API usage
 - `benchmarks/README.md` — benchmark workflows and source sync process
 - `docs/deepseek-ocr2-vllm.md` — DeepSeek OCR2 vLLM setup + throughput runbook
 - `benchmarks/results/ocr-load/README.md` — OCR concurrency and breakpoint results

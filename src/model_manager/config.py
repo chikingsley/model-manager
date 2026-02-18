@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from model_manager.state import ModelEntry
 
 ModelFormat = Literal["gguf", "awq", "gptq", "safetensors", "exl2"]
-Backend = Literal["llama.cpp", "vllm", "ollama", "exllamav2"]
+Backend = Literal["llama.cpp", "vllm", "ollama", "sam3", "exllamav2"]
 ModelType = Literal["chat", "embedding", "reranker", "vision"]
 
 # ─────────────────────────────────────────────────────────────────────────────

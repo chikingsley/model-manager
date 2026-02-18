@@ -27,6 +27,21 @@ These are auto-generated from FastAPI and should be treated as the canonical con
 - `GET /llms-full.txt`
   - Expanded model-facing context with OCR throughput summary and SLA guidance.
 
+## SAM3 Backend Endpoints
+
+- `POST /activate/sam3`
+  - Starts the dedicated SAM3 segmentation backend (`services/sam3`).
+  - Stops conflicting GPU services before activation.
+- `GET /status`
+  - Shows `active: sam3` and running SAM3 service details when enabled.
+
+SAM3 service API (local container):
+- `GET http://localhost:8095/health`
+- `POST http://localhost:8095/segment`
+
+Runbook:
+- `docs/sam3.md`
+
 ## Current OCR Throughput Envelope (Heavy Docs)
 
 Environment:

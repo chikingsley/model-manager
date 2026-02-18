@@ -53,3 +53,16 @@ Rationale:
 - `8192` fixed large-image encoder-cache failures seen at lower budget.
 - `16` keeps multimodal latency stable while preserving concurrency headroom on 12GB VRAM.
 
+## SAM3 (Segmentation) Workflow
+
+Use SAM3 as a dedicated backend service (not vLLM/llama.cpp):
+
+```bash
+cd /home/simon/github/model-manager
+uv run mm sam3
+```
+
+Notes:
+- SAM3 runs from `services/sam3/` using the official Meta repo package.
+- Activation switches GPU ownership (conflicting services are stopped by `mm`).
+- Health endpoint: `http://localhost:8095/health`

@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 ContainerName = Literal[
     "nemotron",
     "vllm",
+    "sam3",
     "llama-server",
     "ollama",
     "voice-tunnel",
@@ -97,6 +98,7 @@ class ServiceStatus:
 # ─────────────────────────────────────────────────────────────────────────────
 
 VLLM_DIR = Path("/home/simon/vllm")
+SAM3_DIR = Path("/home/simon/github/model-manager/services/sam3")
 LLAMA_DIR = Path("/home/simon/llama-server")
 MODELS_DIR = Path("/home/simon/models")
 
@@ -565,6 +567,18 @@ def get_running_services() -> list[ServiceStatus]:
                 model=env.get("MODEL"),
                 port=int(env.get("VLLM_PORT", 8000)),
                 endpoint="https://vllm.peacockery.studio",
+            )
+        )
+
+    if is_running("sam3"):
+        services.append(
+            ServiceStatus(
+                name="sam3",
+                running=True,
+                healthy=get_health("sam3"),
+                model="facebook/sam3",
+                port=8095,
+                endpoint="http://localhost:8095",
             )
         )
 

@@ -28,6 +28,9 @@ mm llama Ministral-3-14B-Instruct-2512-Q4_K_M.gguf
 # Activate vLLM
 mm chat
 
+# Activate SAM3 segmentation service
+mm sam3
+
 # MAX PERFORMANCE mode
 mm perf
 
@@ -71,6 +74,7 @@ mm ocr [model]      # Activate OCR via vLLM (default: DeepSeek-OCR-2)
 mm chat [model]     # Activate vLLM chat
 mm perf [model]     # MAX PERFORMANCE mode (all optimizations)
 mm embed            # Activate embeddings
+mm sam3             # Activate SAM3 segmentation service (official Meta SAM3)
 mm stop             # Stop all model services
 mm models           # List available GGUF models
 mm serve            # Start API server (port 8888)
@@ -113,11 +117,32 @@ GET  /models/gguf         # List available GGUF files
 GET  /capabilities        # Tested operational limits + docs pointers
 GET  /capabilities/ocr    # OCR throughput breakpoints from benchmark runs
 
-POST /activate/{mode}     # Activate a mode (voice, llama, ollama, ocr, chat, perf, embed, stop)
+POST /activate/{mode}     # Activate a mode (voice, llama, ollama, ocr, chat, perf, embed, sam3, stop)
 POST /stop                # Stop all services
 
 GET  /ollama/models       # List Ollama models
 POST /ollama/load/{model} # Load an Ollama model
+```
+
+### SAM3 Service
+
+`mm sam3` starts a dedicated SAM3 segmentation backend from `services/sam3/` using the official Meta repository (`facebookresearch/sam3`).
+
+- Local endpoint: `http://localhost:8095`
+- Health: `GET /health`
+- Inference: `POST /segment`
+- Request body: `{"image_url"|"image_path", "prompt", "top_k"}`
+
+Example:
+
+```bash
+curl -s http://localhost:8095/segment \
+  -H 'content-type: application/json' \
+  -d '{
+    "image_url": "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/beignets-task-guide.png",
+    "prompt": "beignets",
+    "top_k": 3
+  }' | jq
 ```
 
 Notes:

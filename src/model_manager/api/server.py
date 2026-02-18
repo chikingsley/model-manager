@@ -371,6 +371,7 @@ async def get_capabilities() -> CapabilitiesResponse:
         docs={
             "project_readme": "README.md",
             "ocr_runbook": "docs/deepseek-ocr2-vllm.md",
+            "sam3_runbook": "docs/sam3.md",
             "ocr_results": "benchmarks/results/ocr-load/README.md",
         },
         openapi={
@@ -500,7 +501,7 @@ async def get_resources() -> ResourcesResponse:
 
 @app.post("/activate/{mode}", response_model=ActivateResponse)
 async def activate_mode(mode: Mode, req: ActivateRequest | None = None) -> ActivateResponse:
-    """Activate a mode (voice, llama, ollama, ocr, chat, perf, embed, stop)."""
+    """Activate a mode (voice, llama, ollama, ocr, chat, perf, embed, sam3, stop)."""
     model = req.model if req else None
 
     try:

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run
 """Model Manager CLI."""
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ async def show_status() -> None:
         print(f"    {GREEN}●{NC} tunnels: {' '.join(tunnels)}")
 
     print()
-    print(f"  {CYAN}Commands:{NC} mm ollama | mm llama | mm chat | mm voice | mm stop")
+    print(f"  {CYAN}Commands:{NC} mm ollama | mm llama | mm chat | mm sam3 | mm voice | mm stop")
     print()
 
 
@@ -487,6 +487,7 @@ def show_help() -> None:
     print("  mm chat [model]                   Activate vLLM chat")
     print("  mm perf [model]                   Activate max-performance vLLM")
     print("  mm embed                          Activate embeddings")
+    print("  mm sam3                           Activate SAM3 segmentation service")
     print("  mm stop                           Stop all model services")
     print("  mm models                         List GGUF models")
     print("  mm serve [host] [port]            Start API server")
@@ -598,6 +599,8 @@ def main() -> int:
         "embed": "embed",
         "embeddings": "embed",
         "e": "embed",
+        "sam3": "sam3",
+        "sam": "sam3",
         "stop": "stop",
     }
 
