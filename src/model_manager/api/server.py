@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_OCR_BREAKPOINT_RESULT_FILE = (
-    REPO_ROOT / "benchmarks" / "results" / "ocr-load" / "glm_ocr_budget_8192_breakpoint_timeout90.json"
+    REPO_ROOT / "results" / "ocr-load" / "glm_ocr_budget_8192_breakpoint_timeout90.json"
 )
 OCR_BREAKPOINT_RESULT_FILE = Path(
     os.getenv("MM_OCR_BREAKPOINT_FILE", str(DEFAULT_OCR_BREAKPOINT_RESULT_FILE))

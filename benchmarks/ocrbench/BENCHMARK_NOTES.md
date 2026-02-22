@@ -113,7 +113,7 @@ Requires Ollama 0.15.5+ (pre-release as of 2026-02-03).
 
 ```bash
 docker run -d --gpus all --name ollama -p 11434:11434 \
-  -v /home/simon/ollama:/root/.ollama ollama/ollama:0.15.5-rc1
+  -v /home/simon/docker/ollama:/root/.ollama ollama/ollama:0.15.5-rc1
 docker exec ollama ollama pull glm-ocr
 ```
 

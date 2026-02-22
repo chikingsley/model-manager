@@ -12,8 +12,8 @@ hardware:
 paths:
   models: /home/simon/models           # GGUF storage
   hf_cache: ~/.cache/huggingface       # HF downloads
-  vllm_compose: /home/simon/vllm/docker-compose.yml
-  llamacpp_compose: /home/simon/github/calling-nemo/docker-compose.yml
+  vllm_compose: /home/simon/docker/model-manager/backends/vllm/docker-compose.yml
+  llama_compose: /home/simon/docker/model-manager/backends/llama/docker-compose.yml
 
 # Tunnel (optional)
 tunnel:

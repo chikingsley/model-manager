@@ -7,17 +7,9 @@ import argparse
 import asyncio
 import sys
 from datetime import date
-from pathlib import Path
 from typing import Literal
 
 from model_manager.benchmark import _median, run_benchmark
-from model_manager.benchmark_hub import (
-    format_command,
-    load_benchmark_sources,
-    resolve_source_names,
-    run_swebench_batch,
-    sync_benchmark_sources,
-)
 from model_manager.containers import (
     get_gpu_info,
     get_running_services,
@@ -352,109 +344,6 @@ def show_benchmarks() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Benchmark Source Management
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def show_benchmark_sources() -> int:
-    """List configured benchmark source repositories."""
-    sources = load_benchmark_sources()
-    print()
-    print(f"{BOLD}Configured Benchmark Sources{NC}")
-    print()
-
-    for name in sorted(sources):
-        source = sources[name]
-        exists = source.path.exists()
-        marker = f"{GREEN}✓{NC}" if exists else f"{RED}✗{NC}"
-        print(f"  {marker} {name}")
-        print(f"      path: {source.path}")
-        if source.description:
-            print(f"      desc: {source.description}")
-
-    print()
-    print(f"Config file: {Path('benchmarks/sources.yaml')}")
-    return 0
-
-
-def run_benchmark_sync(sources: list[str], check_only: bool) -> int:
-    """Fetch/pull benchmark repositories and report sync status."""
-    available = load_benchmark_sources()
-
-    try:
-        selected = resolve_source_names(available, sources)
-    except ValueError as error:
-        print(f"{RED}{error}{NC}")
-        return 1
-
-    action = "Checking" if check_only else "Syncing"
-    print(f"{CYAN}{action} benchmark sources...{NC}")
-    print()
-
-    results = sync_benchmark_sources(available, selected, check_only=check_only)
-
-    failure_statuses = {"missing", "not_git", "error"}
-    if check_only:
-        failure_statuses.update({"behind", "no_upstream"})
-
-    exit_code = 0
-    for result in results:
-        if result.status in {"up_to_date", "updated"}:
-            color = GREEN
-        elif result.status in {"ahead", "behind", "no_upstream"}:
-            color = YELLOW
-        else:
-            color = RED
-
-        if result.status in failure_statuses:
-            exit_code = 1
-
-        print(f"  {color}{result.name:<16}{NC} {result.message}")
-        print(f"      {result.path}")
-
-    print()
-    return exit_code
-
-
-def run_swebench(
-    backend: Literal["ollama", "vllm", "llamacpp"],
-    model: str | None,
-    limit: int,
-    sweagent_dir: str | None,
-) -> int:
-    """Run SWE-bench Lite through the canonical mm benchmark command."""
-    sweagent_path = Path(sweagent_dir).expanduser() if sweagent_dir else None
-
-    try:
-        result = run_swebench_batch(
-            backend=backend,
-            model=model,
-            limit=limit,
-            sweagent_dir=sweagent_path,
-        )
-    except (FileNotFoundError, ValueError) as error:
-        print(f"{RED}{error}{NC}")
-        return 1
-
-    print()
-    print(f"{BOLD}SWE-bench Lite Evaluation{NC}")
-    print(f"  Backend:   {result.backend}")
-    print(f"  Model:     {result.model}")
-    print(f"  Limit:     {limit}")
-    print(f"  Output:    {result.output_dir}")
-    print("  Command:")
-    print(f"    {format_command(result.command)}")
-    print()
-
-    if result.return_code == 0:
-        print(f"{GREEN}SWE-bench run completed successfully.{NC}")
-    else:
-        print(f"{RED}SWE-bench run failed with exit code {result.return_code}.{NC}")
-
-    return result.return_code
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Server
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -496,15 +385,6 @@ def show_help() -> None:
     print("Benchmark CLI:")
     print("  mm benchmark run                  Benchmark current active model")
     print("  mm benchmark compare              Compare saved benchmark results")
-    print("  mm benchmark sources              List tracked benchmark repositories")
-    print("  mm benchmark sync [sources...]    Fetch/pull benchmark repositories")
-    print("  mm benchmark sync --check [...]   Check drift without pulling")
-    print("  mm benchmark swebench <backend> [--model M] [--limit N]")
-    print()
-    print("Examples:")
-    print("  mm benchmark sync all")
-    print("  mm benchmark sync --check swe-agent livebench")
-    print("  mm benchmark swebench ollama --model ministral-3:8b --limit 5")
 
 
 def _dispatch_benchmark(args: list[str]) -> int:
@@ -513,17 +393,6 @@ def _dispatch_benchmark(args: list[str]) -> int:
 
     subparsers.add_parser("run")
     subparsers.add_parser("compare")
-    subparsers.add_parser("sources")
-
-    sync_parser = subparsers.add_parser("sync")
-    sync_parser.add_argument("sources", nargs="*", default=["all"])
-    sync_parser.add_argument("--check", action="store_true")
-
-    swebench_parser = subparsers.add_parser("swebench")
-    swebench_parser.add_argument("backend", choices=["ollama", "vllm", "llamacpp"])
-    swebench_parser.add_argument("--model")
-    swebench_parser.add_argument("--limit", type=int, default=1)
-    swebench_parser.add_argument("--sweagent-dir")
 
     parsed = parser.parse_args(args)
 
@@ -533,15 +402,6 @@ def _dispatch_benchmark(args: list[str]) -> int:
     if parsed.subcommand == "compare":
         show_benchmarks()
         return 0
-
-    if parsed.subcommand == "sources":
-        return show_benchmark_sources()
-
-    if parsed.subcommand == "sync":
-        return run_benchmark_sync(parsed.sources, check_only=parsed.check)
-
-    if parsed.subcommand == "swebench":
-        return run_swebench(parsed.backend, parsed.model, parsed.limit, parsed.sweagent_dir)
 
     parser.print_help()
     return 1

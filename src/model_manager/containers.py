@@ -97,10 +97,11 @@ class ServiceStatus:
 # Paths
 # ─────────────────────────────────────────────────────────────────────────────
 
-VLLM_DIR = Path("/home/simon/vllm")
-SAM3_DIR = Path("/home/simon/github/model-manager/services/sam3")
-LLAMA_DIR = Path("/home/simon/llama-server")
-MODELS_DIR = Path("/home/simon/models")
+VLLM_DIR = Path("/home/simon/docker/model-manager/backends/vllm")
+SAM3_DIR = Path("/home/simon/docker/model-manager/backends/sam3")
+LLAMA_DIR = Path("/home/simon/docker/model-manager/backends/llama")
+OLLAMA_DIR = Path("/home/simon/docker/model-manager/backends/ollama")
+MODELS_DIR = Path("/home/simon/docker/model-manager/backends/llama/models")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

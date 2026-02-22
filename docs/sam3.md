@@ -11,7 +11,7 @@ This project includes a dedicated SAM3 segmentation service at `services/sam3/`.
 ## Activate
 
 ```bash
-cd /home/simon/github/model-manager
+cd /home/simon/docker/model-manager
 uv run mm sam3
 ```
 

@@ -12,16 +12,17 @@ services:
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=utility
-      - MM_MODELS_FILE=/home/simon/github/model-manager/models.yaml
-      - MM_OCR_BREAKPOINT_FILE=/benchmarks/results/ocr-load/glm_ocr_budget_8192_breakpoint_timeout90.json
+      - MM_MODELS_FILE=/home/simon/docker/model-manager/models.yaml
+      - MM_OCR_BREAKPOINT_FILE=/results/ocr-load/glm_ocr_budget_8192_breakpoint_timeout90.json
     volumes:
       - /home/simon:/home/simon
-      - /home/simon/github/model-manager/benchmarks:/benchmarks:ro
+      - /home/simon/docker/model-manager/benchmarks:/benchmarks:ro
+      - /home/simon/docker/model-manager/results:/results:ro
       - /var/run/docker.sock:/var/run/docker.sock
     command: >
-      python -m uvicorn model_manager.api.server:app --host 0.0.0.0 --port 8890
+      python -m uvicorn model_manager.api.server:app --host 0.0.0.0 --port 4001
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8890/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
       interval: 30s
       timeout: 10s
       retries: 5

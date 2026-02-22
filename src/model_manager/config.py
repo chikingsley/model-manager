@@ -39,8 +39,9 @@ class PathsConfig(BaseModel):
 
     models: Path = Path("/home/simon/models")
     hf_cache: Path = Path.home() / ".cache/huggingface"
-    vllm_compose: Path = Path("/home/simon/vllm/docker-compose.yml")
-    llama_compose: Path = Path("/home/simon/llama-server/docker-compose.yml")
+    vllm_compose: Path = Path("/home/simon/docker/model-manager/backends/vllm/docker-compose.yml")
+    llama_compose: Path = Path("/home/simon/docker/model-manager/backends/llama/docker-compose.yml")
+    ollama_compose: Path = Path("/home/simon/docker/model-manager/backends/ollama/docker-compose.yml")
 
 
 class TunnelConfig(BaseModel):

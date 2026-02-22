@@ -217,7 +217,7 @@ hardware:
 
 paths:
   models: /home/simon/models
-  vllm_compose: /home/simon/vllm/docker-compose.yml
+  vllm_compose: /home/simon/docker/vllm/docker-compose.yml
 ```
 
 ### models.yaml

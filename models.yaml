@@ -274,6 +274,27 @@ models:
       tok_s: 366.0
       ttft_ms: 79.0
       vram_mb: 11384
+  granite-4.0-micro:
+    source: huggingface
+    path: ibm-granite/granite-4.0-micro
+    format: safetensors
+    backend: vllm
+    type: chat
+    vram_estimate: 7.2
+    notes: IBM Granite 4.0 3B dense instruct model. Apache 2.0. Native vLLM support.
+    context_tested: false
+    benchmarked: false
+  nanbeige4.1-3b:
+    source: huggingface
+    path: Nanbeige/Nanbeige4.1-3B
+    format: safetensors
+    backend: vllm
+    type: chat
+    vram_estimate: 7.2
+    notes: 3B reasoning model, beats Qwen3-4B on AIME/GPQA/LiveCodeBench. 131K context.
+      trust-remote-code required.
+    context_tested: false
+    benchmarked: false
   vllm-deepseek-ocr-2:
     source: deepseek-ai/DeepSeek-OCR-2
     backend: vllm
@@ -291,10 +312,21 @@ models:
     type: chat
     context_tested: false
     bench_tok_s: 402.9
-    bench_ttft_ms: 14
+    bench_ttft_ms: 14.0
     bench_itl_ms: 2.5
     bench_p95_ms: 3.0
     bench_date: '2026-02-11'
+    benchmarked: true
+  vllm-granite-4.0-micro:
+    source: ibm-granite/granite-4.0-micro
+    backend: vllm
+    type: chat
+    context_tested: false
+    bench_tok_s: 82.7
+    bench_ttft_ms: 35.0
+    bench_itl_ms: 12.1
+    bench_p95_ms: 13.3
+    bench_date: '2026-02-17'
     benchmarked: true
 setups:
   voice:
@@ -312,6 +344,14 @@ setups:
   chat:
     description: General chat via vLLM
     type: vllm
+  chat-nanbeige:
+    description: Reasoning chat via vLLM (Nanbeige4.1-3B, 32K context)
+    model: nanbeige4.1-3b
+    type: vllm
+  chat-granite:
+    description: Chat via vLLM (Granite 4.0 Micro 3B, 32K context)
+    model: granite-4.0-micro
+    type: vllm
   ollama-ocr:
     description: OCR via Ollama (GLM-OCR 789/1000)
     model: glm-ocr
@@ -323,4 +363,4 @@ setups:
     type: ollama
     num_ctx: 262144
 state:
-  active: ocr
+  active: ollama

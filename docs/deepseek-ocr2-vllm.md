@@ -17,7 +17,7 @@ No services are started by these changes. vLLM only starts when you run an activ
 ## Launch (when ready)
 
 ```bash
-cd /home/simon/github/model-manager
+cd /home/simon/docker/model-manager
 uv run mm ocr
 ```
 

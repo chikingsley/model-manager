@@ -118,16 +118,6 @@ fix:
     uv run ruff check --fix src/
     uv run ruff format src/
 
-# ─── TUI ──────────────────────────────────────────────────────────────────
-
-# Run the TUI
-tui:
-    cd tui && ./mm-tui
-
-# Build the TUI
-tui-build:
-    cd tui && bun run build
-
 # ─── Info ─────────────────────────────────────────────────────────────────
 
 # GPU usage

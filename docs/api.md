@@ -5,7 +5,7 @@
 When the API server container is running, use:
 
 ```bash
-cd /home/simon/github/model-manager
+cd /home/simon/docker/model-manager
 docker compose -f docker-compose.api.yml up -d --build
 ```
 

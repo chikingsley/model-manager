@@ -17,6 +17,7 @@ from model_manager.config import build_runtime_config, build_vllm_env, load_conf
 from model_manager.containers import (
     LLAMA_DIR,
     MODELS_DIR,
+    OLLAMA_DIR,
     SAM3_DIR,
     VLLM_DIR,
     compose_up,
@@ -358,7 +359,7 @@ async def activate_ollama(
     # Start ollama if not running
     if not is_running("ollama"):
         report("Starting Ollama...")
-        if not docker_start("ollama"):
+        if not compose_up(OLLAMA_DIR):
             return ActivationResult(
                 success=False,
                 mode="ollama",

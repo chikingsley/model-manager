@@ -1,0 +1,65 @@
+services:
+  vllm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: local/vllm-openai:ocr2-nightly
+    container_name: vllm
+    restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    ports:
+      - "${VLLM_PORT:-8000}:8000"
+    volumes:
+      - /home/simon/docker/model-manager/backends/vllm/cache:/root/.cache/huggingface
+      - /home/simon/docker/model-manager/backends/vllm/vllm-cache:/root/.cache/vllm
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
+      - VLLM_USE_V1=${VLLM_USE_V1:-0}
+      - VLLM_ATTENTION_BACKEND=${VLLM_ATTENTION_BACKEND:-FLASH_ATTN}
+    command: >
+      --model ${MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
+      --host 0.0.0.0
+      --port 8000
+      --max-model-len ${MAX_MODEL_LEN:-8192}
+      --gpu-memory-utilization ${GPU_MEMORY_UTILIZATION:-0.85}
+      ${EXTRA_ARGS:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    shm_size: 16gb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 900s
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+
+  guidellm:
+    image: ghcr.io/vllm-project/guidellm:latest
+    container_name: guidellm
+    profiles: ["bench"]
+    volumes:
+      - /home/simon/docker/model-manager/results:/results
+    environment:
+      - GUIDELLM__OPENAI__BASE_URL=http://vllm:8000/v1
+    entrypoint: ["guidellm"]
+    command: ["--help"]
+    depends_on:
+      vllm:
+        condition: service_healthy
+

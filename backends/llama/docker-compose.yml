@@ -1,0 +1,29 @@
+services:
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: llama-server
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+    volumes:
+      - /home/simon/docker/model-manager/backends/llama/models:/models
+    command: >
+      --host 0.0.0.0
+      --port 8080
+      -m /models/${MODEL:-Ministral-3-14B-Instruct-2512-Q4_K_M.gguf}
+      -c ${CONTEXT:-8192}
+      -ngl 99
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+

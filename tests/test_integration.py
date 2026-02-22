@@ -195,7 +195,7 @@ class TestCli:
         result = subprocess.run(
             ["uv", "run", "mm"],
             capture_output=True,
-            cwd="/home/simon/github/model-manager",
+            cwd="/home/simon/docker/model-manager",
         )
         assert result.returncode == 0
         stdout = result.stdout.decode("utf-8", errors="replace")
@@ -206,7 +206,7 @@ class TestCli:
         result = subprocess.run(
             ["uv", "run", "mm", "help"],
             capture_output=True,
-            cwd="/home/simon/github/model-manager",
+            cwd="/home/simon/docker/model-manager",
         )
         assert result.returncode == 0
         stdout = result.stdout.decode("utf-8", errors="replace")
@@ -218,7 +218,7 @@ class TestCli:
         result = subprocess.run(
             ["uv", "run", "mm", "models"],
             capture_output=True,
-            cwd="/home/simon/github/model-manager",
+            cwd="/home/simon/docker/model-manager",
         )
         assert result.returncode == 0
         stdout = result.stdout.decode("utf-8", errors="replace")
@@ -378,7 +378,7 @@ class TestModelsRegistry:
         """models.yaml should exist."""
         from pathlib import Path
 
-        assert Path("/home/simon/github/model-manager/models.yaml").exists()
+        assert Path("/home/simon/docker/model-manager/models.yaml").exists()
 
     def test_models_yaml_is_valid(self):
         """models.yaml should be valid and loadable."""

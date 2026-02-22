@@ -23,17 +23,30 @@ dist/
 .mypy_cache/
 .pytype/
 
-# Benchmark outputs and generated artifacts
-benchmark_results/
-benchmarks/swebench/results/
-benchmarks/ocrbench/results
+# Results (all benchmark outputs)
+results/
+
+# Benchmark repos (cloned third-party)
+benchmarks/repos/
+
+# OCRBench data (symlinked from repos)
 benchmarks/ocrbench/OCRBench
 benchmarks/ocrbench/OCRBench_Images
+benchmarks/ocrbench/results
 
-# TUI build artifacts
-tui/node_modules/
-tui/dist/
-tui/mm-tui
+# Backend secrets & env archives
+backends/vllm/.env
+backends/vllm/env/archive/
+backends/llama/.env
+
+# Backend data (model weights, caches)
+backends/vllm/cache/
+backends/vllm/vllm-cache/
+backends/vllm/models/
+backends/llama/models/
+backends/ollama/models/
+backends/ollama/id_ed25519
+backends/ollama/history
 
 # Misc
 .DS_Store
