@@ -401,7 +401,7 @@ def _dispatch_ocr_benchmark(args: list[str]) -> int:
     """Dispatch OCR benchmark suite commands."""
     import subprocess
 
-    runner = Path(__file__).parent.parent.parent / "benchmarks" / "ocr-suite" / "runner.py"
+    runner = Path(__file__).parent.parent.parent / "benchmarks" / "ocr_suite" / "runner.py"
 
     if not runner.exists():
         print(f"{RED}OCR suite runner not found at {runner}{NC}")
@@ -417,11 +417,11 @@ def _dispatch_ocr_benchmark(args: list[str]) -> int:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--resume", action="store_true")
 
-    parsed = parser.parse_args(args)
+    parsed, extra = parser.parse_known_args(args)
 
     if parsed.ocr_command == "setup":
         setup_script = runner.parent / "setup_datasets.py"
-        cmd = ["uv", "run", str(setup_script)]
+        cmd = ["uv", "run", str(setup_script), *extra]
     elif parsed.ocr_command == "compare":
         cmd = ["uv", "run", str(runner), "compare"]
     else:

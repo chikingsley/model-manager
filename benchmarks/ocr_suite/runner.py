@@ -14,10 +14,10 @@
 Orchestrates all OCR benchmarks: run, compare results, or set up datasets.
 
 Usage:
-    uv run benchmarks/ocr-suite/runner.py run --bench ocrbench
-    uv run benchmarks/ocr-suite/runner.py run --bench all --limit 100
-    uv run benchmarks/ocr-suite/runner.py compare
-    uv run benchmarks/ocr-suite/runner.py setup
+    uv run benchmarks/ocr_suite/runner.py run --bench ocrbench
+    uv run benchmarks/ocr_suite/runner.py run --bench all --limit 100
+    uv run benchmarks/ocr_suite/runner.py compare
+    uv run benchmarks/ocr_suite/runner.py setup
 """
 
 from __future__ import annotations
@@ -44,6 +44,10 @@ DATASETS_DIR = BENCHMARKS_DIR / "datasets"               # benchmarks/datasets/
 RESULTS_DIR = BENCHMARKS_DIR.parent / "results" / "ocr-suite"  # results/ocr-suite/
 
 VALID_BENCHES = ("ocrbench", "omnidoc", "unimer", "tables", "kie")
+
+# Ensure ocr_suite is importable as a package
+if str(BENCHMARKS_DIR) not in sys.path:
+    sys.path.insert(0, str(BENCHMARKS_DIR))
 
 logger = logging.getLogger("ocr-suite.runner")
 
@@ -123,7 +127,7 @@ def _make_progress_callback(bench_name: str):
 
 def _run_ocrbench(client, model, results_dir, limit, resume):
     """Run OCRBench and return a serialisable result dict."""
-    from benchmarks.ocrbench import run as run_bench
+    from ocr_suite.benchmarks.ocrbench import run as run_bench
 
     # Try dataset locations in priority order
     dataset_dir = None
@@ -161,7 +165,7 @@ def _run_ocrbench(client, model, results_dir, limit, resume):
 
 def _run_omnidoc(client, model, results_dir, limit, resume):
     """Run OmniDocBench and return a serialisable result dict."""
-    from benchmarks.omnidocbench import run as run_bench
+    from ocr_suite.benchmarks.omnidocbench import run as run_bench
 
     dataset_dir = DATASETS_DIR / "omnidocbench"
     repo_dir = REPOS_DIR / "OmniDocBench"
@@ -192,7 +196,7 @@ def _run_omnidoc(client, model, results_dir, limit, resume):
 
 def _run_unimer(client, model, results_dir, limit, resume):
     """Run UniMER-Test and return a serialisable result dict."""
-    from benchmarks.unimer import run as run_bench
+    from ocr_suite.benchmarks.unimer import run as run_bench
 
     dataset_dir = None
     candidates = [
@@ -232,7 +236,7 @@ def _run_unimer(client, model, results_dir, limit, resume):
 
 def _run_tables(client, model, results_dir, limit, resume):
     """Run PubTabNet/TEDS and return a serialisable result dict."""
-    from benchmarks.tables import run as run_bench
+    from ocr_suite.benchmarks.tables import run as run_bench
 
     dataset_dir = DATASETS_DIR / "pubtabnet"
 
@@ -259,7 +263,7 @@ def _run_tables(client, model, results_dir, limit, resume):
 
 def _run_kie(client, model, results_dir, limit, resume):
     """Run KIE benchmarks and return a serialisable result dict."""
-    from benchmarks.kie import run as run_bench
+    from ocr_suite.benchmarks.kie import run as run_bench
 
     # KIE looks for nanonets-kie/ and handwritten-forms/ under dataset_dir
     dataset_dir = DATASETS_DIR
@@ -299,7 +303,7 @@ _BENCH_RUNNERS = {
 
 def cmd_run(args: argparse.Namespace) -> None:
     """Execute benchmarks."""
-    from inference import detect_model
+    from ocr_suite.inference import detect_model
 
     # Resolve endpoint
     if args.base_url:
@@ -326,10 +330,6 @@ def cmd_run(args: argparse.Namespace) -> None:
         benches = list(VALID_BENCHES)
     else:
         benches = [args.bench]
-
-    # Ensure benchmarks/ package is importable
-    if str(SUITE_DIR) not in sys.path:
-        sys.path.insert(0, str(SUITE_DIR))
 
     # Run each benchmark
     results: dict[str, dict] = {}
