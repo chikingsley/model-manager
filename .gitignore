@@ -29,6 +29,9 @@ results/
 # Benchmark repos (cloned third-party)
 benchmarks/repos/
 
+# Benchmark datasets (downloaded from HuggingFace)
+benchmarks/datasets/
+
 # OCRBench data (symlinked from repos)
 benchmarks/ocrbench/OCRBench
 benchmarks/ocrbench/OCRBench_Images
