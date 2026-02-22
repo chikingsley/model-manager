@@ -6,10 +6,10 @@ Benchmark operations are managed through the `mm` CLI.
 
 | Benchmark | What it tests | Run time | Command |
 |-----------|---------------|----------|---------|
-| Runtime benchmark | Throughput + latency on active model | ~1-3 min | `uv run mm benchmark run` |
-| SWE-bench Lite | Code agent issue resolution | ~5-15 min/issue | `uv run mm benchmark swebench ollama --limit 5` |
-| Benchmark source sync | Pull latest benchmark repos | ~seconds | `uv run mm benchmark sync all` |
-| Benchmark drift check | Check if repos are behind | ~seconds | `uv run mm benchmark sync --check all` |
+| Runtime benchmark | Throughput + latency on active model | ~1-3 min | `mm benchmark run` |
+| OCR suite | OCR across 5 benchmarks (text, tables, formulas, KIE) | ~4-8 hours | `mm benchmark ocr` |
+| OCR suite (quick) | Same, limited samples | ~5-10 min | `mm benchmark ocr --limit 5` |
+| SWE-bench Lite | Code agent issue resolution | ~5-15 min/issue | `mm benchmark swebench ollama --limit 5` |
 
 ## Benchmark Source Management
 
@@ -73,12 +73,56 @@ Backends:
 
 Note: First SWE-bench run will download Docker environments.
 
-## OCRBench
+## OCR Benchmark Suite
 
-OCRBench scripts remain in `benchmarks/ocrbench/`:
+Comprehensive OCR evaluation covering 5 benchmarks:
+
+| Benchmark | Tests | Samples |
+|-----------|-------|---------|
+| OCRBench v1 | Text recognition, VQA, KIE, math | 1,000 |
+| OmniDocBench v1.5 | End-to-end doc parsing | 1,355 |
+| UniMER-Test | Formula recognition | 23,757 |
+| PubTabNet | Table recognition (TEDS) | 9,115 |
+| KIE | Key info extraction | 1,432 |
+
+### First-Time Setup
 
 ```bash
-cd /home/simon/github/model-manager
+cd /home/simon/docker/model-manager
+mm benchmark ocr setup    # Clones repos + downloads HF datasets (~10GB)
+```
+
+### Running
+
+```bash
+# Run all benchmarks against active model
+mm benchmark ocr
+
+# Run specific benchmark
+mm benchmark ocr --bench ocrbench
+mm benchmark ocr --bench omnidoc
+mm benchmark ocr --bench unimer
+mm benchmark ocr --bench tables
+mm benchmark ocr --bench kie
+
+# Quick smoke test (5 samples per benchmark)
+mm benchmark ocr --limit 5
+
+# Resume interrupted run
+mm benchmark ocr --resume
+
+# Compare results across models
+mm benchmark ocr compare
+```
+
+Results saved to `results/ocr-suite/{model}_{timestamp}/results.json`.
+
+## OCRBench (standalone)
+
+The original standalone OCRBench scripts remain in `benchmarks/ocrbench/`:
+
+```bash
+cd /home/simon/docker/model-manager
 uv run benchmarks/ocrbench/eval_openai.py --base-url http://localhost:8000/v1
 ```
 

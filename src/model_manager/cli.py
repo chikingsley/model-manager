@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import sys
 from datetime import date
+from pathlib import Path
 from typing import Literal
 
 from model_manager.benchmark import _median, run_benchmark
@@ -377,6 +378,7 @@ def show_help() -> None:
     print("  mm perf [model]                   Activate max-performance vLLM")
     print("  mm embed                          Activate embeddings")
     print("  mm sam3                           Activate SAM3 segmentation service")
+    print("  mm pronunciation                  Activate pronunciation lab (Qwen3-ASR)")
     print("  mm stop                           Stop all model services")
     print("  mm models                         List GGUF models")
     print("  mm serve [host] [port]            Start API server")
@@ -385,6 +387,55 @@ def show_help() -> None:
     print("Benchmark CLI:")
     print("  mm benchmark run                  Benchmark current active model")
     print("  mm benchmark compare              Compare saved benchmark results")
+    print()
+    print("OCR Benchmark Suite:")
+    print("  mm benchmark ocr                  Run all OCR benchmarks against active model")
+    print("  mm benchmark ocr --bench NAME     Run specific (ocrbench/omnidoc/unimer/tables/kie)")
+    print("  mm benchmark ocr --limit N        Limit samples per benchmark")
+    print("  mm benchmark ocr --resume         Resume from existing predictions")
+    print("  mm benchmark ocr compare          Compare OCR results across models")
+    print("  mm benchmark ocr setup            Download datasets and clone repos")
+
+
+def _dispatch_ocr_benchmark(args: list[str]) -> int:
+    """Dispatch OCR benchmark suite commands."""
+    import subprocess
+
+    runner = Path(__file__).parent.parent.parent / "benchmarks" / "ocr-suite" / "runner.py"
+
+    if not runner.exists():
+        print(f"{RED}OCR suite runner not found at {runner}{NC}")
+        return 1
+
+    # Parse the OCR-specific args
+    parser = argparse.ArgumentParser(prog="mm benchmark ocr")
+    parser.add_argument("ocr_command", nargs="?", default="run",
+                        choices=["run", "compare", "setup"])
+    parser.add_argument("--bench", type=str, default="all")
+    parser.add_argument("--base-url", type=str, default=None)
+    parser.add_argument("--api-key", type=str, default="EMPTY")
+    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--resume", action="store_true")
+
+    parsed = parser.parse_args(args)
+
+    if parsed.ocr_command == "setup":
+        setup_script = runner.parent / "setup_datasets.py"
+        cmd = ["uv", "run", str(setup_script)]
+    elif parsed.ocr_command == "compare":
+        cmd = ["uv", "run", str(runner), "compare"]
+    else:
+        cmd = ["uv", "run", str(runner), "run", "--bench", parsed.bench]
+        if parsed.base_url:
+            cmd.extend(["--base-url", parsed.base_url])
+        if parsed.api_key != "EMPTY":
+            cmd.extend(["--api-key", parsed.api_key])
+        if parsed.limit:
+            cmd.extend(["--limit", str(parsed.limit)])
+        if parsed.resume:
+            cmd.append("--resume")
+
+    return subprocess.run(cmd).returncode
 
 
 def _dispatch_benchmark(args: list[str]) -> int:
@@ -393,8 +444,10 @@ def _dispatch_benchmark(args: list[str]) -> int:
 
     subparsers.add_parser("run")
     subparsers.add_parser("compare")
+    subparsers.add_parser("ocr")
 
-    parsed = parser.parse_args(args)
+    # Parse only the first arg to get the subcommand
+    parsed, remaining = parser.parse_known_args(args)
 
     if parsed.subcommand == "run":
         return asyncio.run(run_benchmark_current())
@@ -402,6 +455,9 @@ def _dispatch_benchmark(args: list[str]) -> int:
     if parsed.subcommand == "compare":
         show_benchmarks()
         return 0
+
+    if parsed.subcommand == "ocr":
+        return _dispatch_ocr_benchmark(remaining)
 
     parser.print_help()
     return 1
@@ -461,6 +517,8 @@ def main() -> int:
         "e": "embed",
         "sam3": "sam3",
         "sam": "sam3",
+        "pronunciation": "pronunciation",
+        "pron": "pronunciation",
         "stop": "stop",
     }
 
