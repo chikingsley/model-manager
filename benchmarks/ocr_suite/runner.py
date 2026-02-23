@@ -8,6 +8,7 @@
 #     "datasets",
 #     "huggingface-hub",
 #     "Pillow",
+#     "pylatexenc",
 # ]
 # ///
 """OCR Benchmark Suite — Runner.
@@ -317,8 +318,11 @@ def cmd_run(args: argparse.Namespace) -> None:
     # Create client
     client = OpenAI(base_url=base_url, api_key=args.api_key)
 
-    # Detect model
-    model = detect_model(client)
+    # Detect or use explicit model
+    if args.model:
+        model = args.model
+    else:
+        model = detect_model(client)
     print(f"Model: {model}", file=sys.stderr)
 
     # Create model slug (filesystem-safe)
@@ -582,6 +586,11 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         choices=[*VALID_BENCHES, "all"],
         help="Which benchmark(s) to run",
+    )
+    run_parser.add_argument(
+        "--model",
+        default=None,
+        help="Model name/ID to use (auto-detected from endpoint if not given)",
     )
     run_parser.add_argument(
         "--base-url",

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -79,9 +80,12 @@ def _load_on_disk(dataset_dir: Path) -> list[_Sample]:
     """Load from UniMERNet repo layout.
 
     Expected structure:
-        {dataset_dir}/{cat}/   — image files
-        {dataset_dir}/{cat}.txt — one LaTeX label per line, matching
-                                   sorted image filenames
+        {dataset_dir}/{cat}/   — image files (named like 0000030.png)
+        {dataset_dir}/{cat}.txt — one LaTeX label per line, indexed
+                                   by the numeric part of the filename
+
+    Image filenames encode their label index: ``0000030.png`` means
+    the label is at line 30 (0-indexed) of the corresponding .txt file.
     """
     samples: list[_Sample] = []
     for cat in CATEGORIES:
@@ -96,20 +100,26 @@ def _load_on_disk(dataset_dir: Path) -> list[_Sample]:
         )
         labels = label_file.read_text(encoding="utf-8").splitlines()
 
-        if len(images) != len(labels):
-            log.warning(
-                "Category %s: %d images vs %d labels — using min",
-                cat,
-                len(images),
-                len(labels),
-            )
+        for img in images:
+            # Extract the numeric index from the filename (e.g. 0000030.png -> 30)
+            try:
+                label_idx = int(img.stem)
+            except ValueError:
+                log.warning("Cannot parse index from filename %s, skipping", img.name)
+                continue
 
-        for idx, (img, label) in enumerate(zip(images, labels)):
+            if label_idx >= len(labels):
+                log.warning(
+                    "Category %s: image %s has index %d but only %d labels",
+                    cat, img.name, label_idx, len(labels),
+                )
+                continue
+
             samples.append(
                 _Sample(
-                    id=f"{cat}_{idx:05d}",
+                    id=f"{cat}_{label_idx:05d}",
                     image_path=img,
-                    ground_truth=label.strip(),
+                    ground_truth=labels[label_idx].strip(),
                     category=cat,
                 )
             )
@@ -178,8 +188,18 @@ def _normalised_edit_distance(pred: str, gt: str) -> float:
 
 
 def _strip_delimiters(text: str) -> str:
-    """Remove surrounding ``$`` / ``$$`` delimiters from LaTeX."""
+    """Remove surrounding delimiters and code fences from LaTeX output.
+
+    Handles ``$`` / ``$$`` delimiters and markdown code fences
+    (e.g. ` ```latex\\n...\\n``` `) that models often wrap around output.
+    """
     text = text.strip()
+    # Strip markdown code fences (```latex ... ``` or ``` ... ```)
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
+        text = re.sub(r"\n?```\s*$", "", text)
+        text = text.strip()
+    # Strip $$ or $ delimiters
     if text.startswith("$$") and text.endswith("$$"):
         text = text[2:-2].strip()
     elif text.startswith("$") and text.endswith("$"):

@@ -264,13 +264,23 @@ def run(
     eval_result_dir.mkdir(parents=True, exist_ok=True)
 
     try:
+        # Use uv to run the eval script with essential dependencies.
+        # The upstream requirements.txt has conflicting version pins,
+        # so we install key packages individually instead.
+        _EVAL_DEPS = [
+            "beautifulsoup4", "lxml", "pylatexenc", "rapidfuzz",
+            "python-Levenshtein", "apted", "nltk", "mmeval",
+            "tqdm", "pandas", "numpy", "pyyaml", "Pillow",
+            "scikit-learn", "scipy", "tabulate", "matplotlib",
+            "opencv-python",
+        ]
+        cmd = ["uv", "run"]
+        for dep in _EVAL_DEPS:
+            cmd += ["--with", dep]
+        cmd += [str(eval_script), "--config", str(config_path)]
+
         proc = subprocess.run(
-            [
-                "python",
-                str(eval_script),
-                "--config",
-                str(config_path),
-            ],
+            cmd,
             cwd=str(repo_dir),
             capture_output=True,
             text=True,
