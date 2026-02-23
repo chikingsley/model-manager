@@ -35,12 +35,7 @@ logger = logging.getLogger(__name__)
 # Prompt
 # ---------------------------------------------------------------------------
 
-TABLE_PROMPT = (
-    "Convert this table image to HTML. Rules:\n"
-    "- Use <table>, <thead>, <tbody>, <tr>, <th>, <td> tags\n"
-    "- Include colspan and rowspan attributes where needed\n"
-    "- Output ONLY the HTML table, no explanations"
-)
+TABLE_PROMPT = "Table Recognition:"
 
 # ---------------------------------------------------------------------------
 # Result dataclass
@@ -114,28 +109,104 @@ _TABLE_RE = re.compile(
 )
 
 
-def _clean_predicted_html(raw: str) -> str:
-    """Extract the ``<table>...</table>`` from the model's raw output.
+def _markdown_table_to_html(md: str) -> str:
+    """Convert a Markdown table to an HTML ``<table>`` string.
 
-    Models may wrap the table in markdown fences, add explanations, etc.
-    We extract the first ``<table>`` block and wrap it in the standard
-    ``<html><body>...</body></html>`` envelope that TEDS expects.
+    Handles standard GFM pipe-delimited tables.  The separator line
+    (``|---|---|``) is detected and skipped; the first row becomes
+    ``<thead>`` and the rest ``<tbody>``.
+    """
+    lines = [ln.strip() for ln in md.strip().splitlines() if ln.strip()]
+    if not lines:
+        return "<table></table>"
+
+    def _parse_row(line: str) -> list[str]:
+        # Remove leading/trailing pipes and split
+        line = line.strip("|").strip()
+        return [cell.strip() for cell in line.split("|")]
+
+    # Detect separator line (e.g. |---|---|)
+    sep_idx = None
+    for i, line in enumerate(lines):
+        stripped = line.replace("|", "").replace("-", "").replace(":", "").strip()
+        if not stripped:
+            sep_idx = i
+            break
+
+    rows_html: list[str] = []
+    header_cells = _parse_row(lines[0])
+
+    # Build header
+    header_tds = "".join(f"<td>{escape(c)}</td>" for c in header_cells)
+    thead = f"<thead><tr>{header_tds}</tr></thead>"
+
+    # Body rows: skip the separator line
+    body_start = (sep_idx + 1) if sep_idx is not None else 1
+    body_rows = []
+    for line in lines[body_start:]:
+        # Skip any additional separator lines
+        stripped = line.replace("|", "").replace("-", "").replace(":", "").strip()
+        if not stripped:
+            continue
+        cells = _parse_row(line)
+        tds = "".join(f"<td>{escape(c)}</td>" for c in cells)
+        body_rows.append(f"<tr>{tds}</tr>")
+
+    tbody = f"<tbody>{''.join(body_rows)}</tbody>" if body_rows else ""
+    return f"<table>{thead}{tbody}</table>"
+
+
+def _normalise_html_table(html: str) -> str:
+    """Normalise an HTML table for fairer TEDS comparison.
+
+    - Strips ``<head>`` block (with ``<style>``, ``<meta>``, etc.)
+    - Converts ``<th>`` → ``<td>``
+    - Strips all attributes from tags
+    - Removes inline formatting wrappers
+    - Collapses whitespace inside cell text
+    """
+    # Remove <head>...</head> entirely
+    html = re.sub(r"<head>.*?</head>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    # Convert <th> to <td>
+    html = re.sub(r"<th(\s|>)", r"<td\1", html, flags=re.IGNORECASE)
+    html = re.sub(r"</th>", "</td>", html, flags=re.IGNORECASE)
+    # Strip ALL attributes from tags (frame, rules, style, class, etc.)
+    html = re.sub(r"(<\w+)\s+[^>]*(/?>)", r"\1\2", html)
+    # Unwrap inline formatting tags
+    for tag in ("b", "i", "strong", "em", "font", "sup", "sub", "span"):
+        html = re.sub(rf"</?{tag}[^>]*>", "", html, flags=re.IGNORECASE)
+    # Collapse whitespace (normalize newlines and spaces inside cells)
+    html = re.sub(r"\s+", " ", html)
+    # Remove spaces around tags
+    html = re.sub(r"\s*(<[^>]+>)\s*", r"\1", html)
+    return html
+
+
+def _clean_predicted_html(raw: str) -> str:
+    """Convert model output to normalised HTML for TEDS scoring.
+
+    Handles both direct HTML output and Markdown table output.  Strips
+    markdown fences, converts Markdown→HTML if needed, and normalises
+    the result.
     """
     # Strip markdown code fences if present.
     cleaned = raw.strip()
     if cleaned.startswith("```"):
-        # Remove opening fence (possibly ```html)
         cleaned = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned)
         cleaned = re.sub(r"\n?```\s*$", "", cleaned)
         cleaned = cleaned.strip()
 
+    # Check if output contains an HTML table
     match = _TABLE_RE.search(cleaned)
     if match:
         table_html = match.group(0)
+    elif "|" in cleaned and "\n" in cleaned:
+        # Looks like a Markdown table — convert it
+        table_html = _markdown_table_to_html(cleaned)
     else:
-        # If no <table> found, wrap the whole output in <table> tags.
         table_html = f"<table>{cleaned}</table>"
 
+    table_html = _normalise_html_table(table_html)
     return f"<html><body>{table_html}</body></html>"
 
 
@@ -314,13 +385,17 @@ def run(
             })
             continue
 
+        # -- normalise ground-truth HTML for fair comparison ------------------
+        gt_html = _normalise_html_table(gt_html)
+
         # -- run inference ---------------------------------------------------
         result = run_inference(
             client=client,
             model=model,
             image_path=image_path,
             prompt=TABLE_PROMPT,
-            max_tokens=4096,
+            max_tokens=8192,
+            temperature=0.01,
         )
 
         if result.error is not None:

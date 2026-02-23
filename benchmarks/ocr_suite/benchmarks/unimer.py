@@ -39,10 +39,7 @@ CATEGORIES: dict[str, str] = {
     "hwe": "Handwritten Expressions",
 }
 
-PROMPT = (
-    "Convert this mathematical expression to LaTeX. "
-    "Output ONLY the LaTeX code, nothing else."
-)
+PROMPT = "Formula Recognition:"
 
 PREDICTIONS_FILE = "unimer_predictions.json"
 PROGRESS_INTERVAL = 200
@@ -181,8 +178,49 @@ def _load_samples(dataset_dir: Path) -> list[_Sample]:
 # ------------------------------------------------------------------
 
 
+def _normalise_latex(text: str) -> str:
+    """Normalise LaTeX for fair comparison.
+
+    Mirrors the official OmniDocBench ``normalized_formula()`` pipeline:
+    strips font/wrapper commands, spacing commands, normalises whitespace
+    around structural tokens, and lowercases.
+    """
+    # Remove common font / wrapper commands (keep their argument)
+    for cmd in (r"\mathbf", r"\textbf", r"\text", r"\mathrm",
+                r"\operatorname", r"\boldsymbol", r"\mathit",
+                r"\mathcal", r"\mathbb", r"\mathfrak"):
+        text = text.replace(cmd, "")
+    # Remove spacing commands
+    for sp in (r"\,", r"\;", r"\:", r"\!", r"\ ", r"\quad", r"\qquad",
+               r"\hspace", r"\vspace", r"\allowbreak"):
+        text = text.replace(sp, "")
+    # Remove ~ (non-breaking space in LaTeX)
+    text = text.replace("~", "")
+    # Normalise delimiter sizing commands to a common form
+    for cmd in (r"\left", r"\right", r"\bigl", r"\bigr",
+                r"\Bigl", r"\Bigr", r"\biggl", r"\biggr",
+                r"\Biggl", r"\Biggr", r"\big", r"\Big"):
+        text = text.replace(cmd, "")
+    # Normalise \vert and \mid to |
+    text = text.replace(r"\vert", "|")
+    text = text.replace(r"\mid", "|")
+    # Remove spaces around structural tokens: { } ^ _ ( ) [ ]
+    text = re.sub(r"\s*([{}^_()[\]])\s*", r"\1", text)
+    # Collapse remaining whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    # Lowercase for case-insensitive comparison
+    text = text.lower()
+    return text
+
+
 def _normalised_edit_distance(pred: str, gt: str) -> float:
-    """Normalised Levenshtein distance (0 = perfect, 1 = worst)."""
+    """Normalised Levenshtein distance (0 = perfect, 1 = worst).
+
+    Both sides are normalised first to remove superficial differences
+    in LaTeX formatting (font wrappers, spacing, case).
+    """
+    pred = _normalise_latex(pred)
+    gt = _normalise_latex(gt)
     dist = Levenshtein.distance(pred, gt)
     return dist / max(len(pred), len(gt), 1)
 
@@ -284,7 +322,8 @@ def run(
             model=model,
             image_path=sample.image_path,
             prompt=PROMPT,
-            max_tokens=1024,
+            max_tokens=4096,
+            temperature=0.01,
         )
 
         if result.error is not None:

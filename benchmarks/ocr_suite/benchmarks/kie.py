@@ -281,7 +281,8 @@ def _run_nanonets(
             model=model,
             image_path=img_path,
             prompt=prompt,
-            max_tokens=512,
+            max_tokens=4096,
+            temperature=0.01,
         )
 
         gt = _flatten_nanonets_gt(sample)
@@ -410,7 +411,8 @@ def _run_handwritten(
             model=model,
             image_path=img_path,
             prompt=prompt,
-            max_tokens=512,
+            max_tokens=4096,
+            temperature=0.01,
         )
 
         gt = _flatten_handwritten_gt(sample)
