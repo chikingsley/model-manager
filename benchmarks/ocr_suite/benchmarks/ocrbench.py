@@ -3,11 +3,15 @@
 Wraps the OCRBench evaluation logic into a clean module interface that
 uses the shared inference layer from ``..inference``.
 
+Supports two data loading paths:
+1. HuggingFace dataset (preferred) — images embedded as PIL objects.
+2. Raw JSON + images on disk — ``OCRBench.json`` + ``OCRBench_Images/``.
+
 Usage::
 
     from openai import OpenAI
     from pathlib import Path
-    from benchmarks.ocrbench import run
+    from ocr_suite.benchmarks.ocrbench import run
 
     client = OpenAI(base_url="http://localhost:8000/v1", api_key="EMPTY")
     result = run(client, "my-model", Path("datasets/ocrbench"), Path("results"))
@@ -16,6 +20,7 @@ Usage::
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 from dataclasses import dataclass, field
@@ -105,38 +110,114 @@ def _compute_scores(data: list[dict]) -> dict[str, int]:
 
 
 # ---------------------------------------------------------------------------
-# Path resolution helpers
+# Data loading
 # ---------------------------------------------------------------------------
 
 
-def _resolve_json(dataset_dir: Path) -> Path:
-    """Locate ``OCRBench.json`` trying multiple conventional paths."""
-    candidates = [
+def _load_from_hf(dataset_dir: Path, limit: int | None = None) -> list[dict] | None:
+    """Try to load from HuggingFace save_to_disk format at *dataset_dir*.
+
+    Returns list of dicts with keys: id, dataset_name, question, answers,
+    type, image_bytes.  Returns None if the HF dataset isn't found.
+    """
+    # Check for save_to_disk marker files
+    if not (dataset_dir / "dataset_dict.json").is_file() and not (
+        dataset_dir / "dataset_info.json"
+    ).is_file():
+        return None
+
+    try:
+        from datasets import load_from_disk
+    except ImportError:
+        return None
+
+    try:
+        ds = load_from_disk(str(dataset_dir))
+    except Exception:
+        return None
+
+    # Get the right split
+    if hasattr(ds, "keys"):
+        if "test" in ds:
+            ds = ds["test"]
+        elif "train" in ds:
+            ds = ds["train"]
+        else:
+            ds = ds[list(ds.keys())[0]]
+
+    items = []
+    count = len(ds) if limit is None else min(limit, len(ds))
+    for i in range(count):
+        sample = ds[i]
+
+        # Convert PIL image to bytes
+        img = sample.get("image")
+        if img is None:
+            continue
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        image_bytes = buf.getvalue()
+
+        items.append({
+            "id": i,
+            "dataset_name": sample.get("dataset", ""),
+            "question": sample.get("question", ""),
+            "answers": sample.get("answer", []),
+            "type": sample.get("question_type", ""),
+            "image_bytes": image_bytes,
+        })
+
+    return items if items else None
+
+
+def _load_from_json(dataset_dir: Path, limit: int | None = None) -> list[dict]:
+    """Load from raw OCRBench.json + OCRBench_Images/ on disk."""
+    # Resolve JSON
+    candidates_json = [
         dataset_dir / "OCRBench.json",
         dataset_dir / "OCRBench" / "OCRBench.json",
     ]
-    for p in candidates:
+    json_path = None
+    for p in candidates_json:
         if p.is_file():
-            return p
-    tried = ", ".join(str(c) for c in candidates)
-    raise FileNotFoundError(
-        f"OCRBench.json not found. Tried: {tried}"
-    )
+            json_path = p
+            break
+    if json_path is None:
+        raise FileNotFoundError(
+            f"OCRBench.json not found. Tried: {', '.join(str(c) for c in candidates_json)}"
+        )
 
-
-def _resolve_images_dir(dataset_dir: Path) -> Path:
-    """Locate the ``OCRBench_Images/`` folder trying multiple paths."""
-    candidates = [
+    # Resolve images dir
+    candidates_img = [
         dataset_dir / "OCRBench_Images",
         dataset_dir / "OCRBench" / "OCRBench_Images",
     ]
-    for p in candidates:
+    images_dir = None
+    for p in candidates_img:
         if p.is_dir():
-            return p
-    tried = ", ".join(str(c) for c in candidates)
-    raise FileNotFoundError(
-        f"OCRBench_Images directory not found. Tried: {tried}"
-    )
+            images_dir = p
+            break
+    if images_dir is None:
+        raise FileNotFoundError(
+            f"OCRBench_Images not found. Tried: {', '.join(str(c) for c in candidates_img)}"
+        )
+
+    with open(json_path, "r") as f:
+        data: list[dict] = json.load(f)
+
+    if limit is not None:
+        data = data[:limit]
+
+    # Add image paths and read bytes
+    for item in data:
+        image_path = images_dir / item["image_path"]
+        if image_path.is_file():
+            item["image_bytes"] = image_path.read_bytes()
+        else:
+            item["image_bytes"] = None
+            logger.warning("Image not found: %s", image_path)
+
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -158,9 +239,8 @@ def run(
     Args:
         client: OpenAI SDK client pointed at the target endpoint.
         model: Model name/ID for chat completions.
-        dataset_dir: Directory containing ``OCRBench.json`` and the
-            ``OCRBench_Images/`` folder (or an ``OCRBench/`` sub-directory
-            with both).
+        dataset_dir: Directory containing either a HF dataset cache or
+            ``OCRBench.json`` + ``OCRBench_Images/``.
         results_dir: Where to write ``ocrbench_predictions.json``.
         limit: If set, only evaluate the first *limit* items.
         resume: If *True*, skip items that already have predictions saved
@@ -171,19 +251,14 @@ def run(
     Returns:
         An :class:`OCRBenchResult` with the final score breakdown.
     """
-    # -- resolve paths -------------------------------------------------------
-    json_path = _resolve_json(dataset_dir)
-    images_dir = _resolve_images_dir(dataset_dir)
     results_dir = Path(results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
     output_path = results_dir / "ocrbench_predictions.json"
 
-    # -- load benchmark data -------------------------------------------------
-    with open(json_path, "r") as f:
-        data: list[dict] = json.load(f)
-
-    if limit is not None:
-        data = data[:limit]
+    # -- load data (try HF first, then JSON) ---------------------------------
+    data = _load_from_hf(dataset_dir, limit)
+    if data is None:
+        data = _load_from_json(dataset_dir, limit)
 
     total = len(data)
 
@@ -195,7 +270,6 @@ def run(
         for item in existing:
             if "predict" in item:
                 completed_ids.add(item["id"])
-                # Merge existing predictions back into data
                 for d in data:
                     if d["id"] == item["id"]:
                         d["predict"] = item["predict"]
@@ -206,14 +280,13 @@ def run(
     errors = 0
     completed = 0
 
-    for idx, item in enumerate(data):
+    for item in data:
         if item.get("id") in completed_ids:
             completed += 1
             continue
 
-        image_path = images_dir / item["image_path"]
-        if not image_path.is_file():
-            logger.warning("Image not found: %s", image_path)
+        image_bytes = item.get("image_bytes")
+        if image_bytes is None:
             item["predict"] = ""
             item["result"] = 0
             errors += 1
@@ -223,7 +296,7 @@ def run(
         result = run_inference(
             client=client,
             model=model,
-            image_path=image_path,
+            image_bytes=image_bytes,
             prompt=item["question"],
             max_tokens=512,
         )
@@ -242,16 +315,18 @@ def run(
         completed += 1
 
         # -- incremental save ------------------------------------------------
+        save_data = [{k: v for k, v in d.items() if k != "image_bytes"} for d in data]
         with open(output_path, "w") as f:
-            json.dump(data, f, indent=2)
+            json.dump(save_data, f, indent=2)
 
         # -- progress callback -----------------------------------------------
         if on_progress is not None and (completed % 50 == 0 or completed == total):
             on_progress(completed, total)
 
-    # -- final save (ensure everything is written) ---------------------------
+    # -- final save ----------------------------------------------------------
+    save_data = [{k: v for k, v in d.items() if k != "image_bytes"} for d in data]
     with open(output_path, "w") as f:
-        json.dump(data, f, indent=2)
+        json.dump(save_data, f, indent=2)
 
     # -- compute scores ------------------------------------------------------
     categories = _compute_scores(data)

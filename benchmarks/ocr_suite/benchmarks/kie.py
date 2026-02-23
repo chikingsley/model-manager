@@ -164,12 +164,25 @@ def _score_prediction(pred: dict, gt: dict, fields: list[str]) -> float:
 
 
 def _save_image(image, path: Path) -> None:
-    """Save a PIL image to disk as JPEG, creating parent dirs as needed."""
+    """Save an image to disk as JPEG, creating parent dirs as needed.
+
+    Accepts either a PIL Image or raw bytes.
+    """
+    from PIL import Image as PILImage
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Convert RGBA/P mode to RGB for JPEG compatibility
-    if image.mode in ("RGBA", "P", "LA"):
-        image = image.convert("RGB")
-    image.save(str(path), "JPEG")
+    if isinstance(image, bytes):
+        # Raw bytes — write directly or convert via PIL for JPEG
+        import io
+        img = PILImage.open(io.BytesIO(image))
+        if img.mode in ("RGBA", "P", "LA"):
+            img = img.convert("RGB")
+        img.save(str(path), "JPEG")
+    else:
+        # PIL Image
+        if image.mode in ("RGBA", "P", "LA"):
+            image = image.convert("RGB")
+        image.save(str(path), "JPEG")
 
 
 def _load_predictions(path: Path) -> dict[int, dict]:
@@ -355,7 +368,13 @@ def _run_handwritten(
 
     logger.info("Loading Handwritten-Forms dataset from %s", dataset_dir)
     ds = load_from_disk(str(dataset_dir))
-    split = ds["validation"]
+    # Handle split naming variants (val vs validation)
+    if "validation" in ds:
+        split = ds["validation"]
+    elif "val" in ds:
+        split = ds["val"]
+    else:
+        split = ds[list(ds.keys())[0]]
 
     total = len(split) if limit is None else min(limit, len(split))
     prompt = _build_prompt(HANDWRITTEN_FIELDS)

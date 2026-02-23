@@ -3,15 +3,16 @@
 # dependencies = [
 #     "datasets",
 #     "huggingface-hub",
+#     "Pillow",
 # ]
 # ///
 """
 Setup script for OCR benchmark suite — clones repos and downloads datasets.
 
 Usage:
-    uv run benchmarks/ocr-suite/setup_datasets.py              # everything
-    uv run benchmarks/ocr-suite/setup_datasets.py --repos-only  # git repos only
-    uv run benchmarks/ocr-suite/setup_datasets.py --datasets-only  # HF datasets only
+    uv run benchmarks/ocr_suite/setup_datasets.py              # everything
+    uv run benchmarks/ocr_suite/setup_datasets.py --repos-only  # git repos only
+    uv run benchmarks/ocr_suite/setup_datasets.py --datasets-only  # HF datasets only
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ import argparse
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -38,14 +40,29 @@ REPOS: dict[str, str] = {
     "docext": "https://github.com/NanoNets/docext.git",
 }
 
-# name -> HuggingFace dataset ID
+# Datasets that work with load_dataset() + save_to_disk()
 DATASETS: dict[str, str] = {
-    "omnidocbench": "opendatalab/OmniDocBench",
     "ocrbench": "echo840/OCRBench",
-    "unimer-test": "wanderkid/UniMER_Dataset",
-    "pubtabnet": "ajimeno/PubTabNet",
     "nanonets-kie": "nanonets/key_information_extraction",
     "handwritten-forms": "Rasi1610/DeathSe43_44_checkbox",
+}
+
+# Datasets that need snapshot_download (raw files from HF Hub)
+DATASETS_SNAPSHOT: dict[str, str] = {
+    # local_name -> hf_repo_id (downloads entire repo)
+    "omnidocbench": "opendatalab/OmniDocBench",
+}
+
+# Datasets downloaded via load_dataset with specific split + save_to_disk
+DATASETS_SPLIT: dict[str, tuple[str, str]] = {
+    # local_name -> (hf_repo_id, split)
+    "pubtabnet": ("apoidea/pubtabnet-html", "validation"),
+}
+
+# Datasets that need direct file download (zip archives on HF Hub)
+DATASETS_DOWNLOAD: dict[str, tuple[str, str]] = {
+    # local_name -> (hf_repo_id, filename)
+    "unimer-test": ("wanderkid/UniMER_Dataset", "UniMER-Test.zip"),
 }
 
 # ---------------------------------------------------------------------------
@@ -111,16 +128,85 @@ def download_datasets() -> None:
 
     # Import here so --repos-only works without the datasets package
     from datasets import load_dataset
+    from huggingface_hub import hf_hub_download, snapshot_download
 
+    # Standard datasets (load_dataset → save_to_disk)
     for local_name, hf_id in DATASETS.items():
+        dest = DATASETS_DIR / local_name
+        # Check for save_to_disk marker (dataset_dict.json or dataset_info.json)
+        if dest.exists() and (
+            (dest / "dataset_dict.json").is_file()
+            or (dest / "dataset_info.json").is_file()
+        ):
+            print(f"\n[skip] {local_name} — already exists at {dest}")
+            continue
+        # Clean up any stale HF cache dirs from previous attempts
+        if dest.exists():
+            shutil.rmtree(dest)
+        print(f"\n[download] {local_name}  ({hf_id})")
+        try:
+            ds = load_dataset(hf_id)
+            ds.save_to_disk(str(dest))
+            print(f"  -> OK  splits: {list(ds.keys())}  ({fmt_size(dir_size_mb(dest))})")
+        except Exception as exc:
+            print(f"  !! FAILED: {exc}", file=sys.stderr)
+
+    # Split-specific datasets (load specific split + save_to_disk)
+    for local_name, (hf_id, split_name) in DATASETS_SPLIT.items():
+        dest = DATASETS_DIR / local_name
+        if dest.exists() and (
+            (dest / "dataset_dict.json").is_file()
+            or (dest / "dataset_info.json").is_file()
+        ):
+            print(f"\n[skip] {local_name} — already exists at {dest}")
+            continue
+        if dest.exists():
+            shutil.rmtree(dest)
+        print(f"\n[download] {local_name}  ({hf_id} split={split_name})")
+        try:
+            ds = load_dataset(hf_id, split=split_name)
+            ds.save_to_disk(str(dest))
+            print(f"  -> OK  {len(ds)} samples  ({fmt_size(dir_size_mb(dest))})")
+        except Exception as exc:
+            print(f"  !! FAILED: {exc}", file=sys.stderr)
+
+    # Snapshot downloads (entire HF repo as raw files)
+    for local_name, hf_id in DATASETS_SNAPSHOT.items():
         dest = DATASETS_DIR / local_name
         if dest.exists() and any(dest.iterdir()):
             print(f"\n[skip] {local_name} — already exists at {dest}")
             continue
-        print(f"\n[download] {local_name}  ({hf_id})")
+        print(f"\n[download] {local_name}  ({hf_id}) via snapshot_download")
         try:
-            ds = load_dataset(hf_id, cache_dir=str(dest), trust_remote_code=True)
-            print(f"  -> OK  splits: {list(ds.keys())}  ({fmt_size(dir_size_mb(dest))})")
+            snapshot_download(
+                repo_id=hf_id,
+                repo_type="dataset",
+                local_dir=str(dest),
+            )
+            print(f"  -> OK  ({fmt_size(dir_size_mb(dest))})")
+        except Exception as exc:
+            print(f"  !! FAILED: {exc}", file=sys.stderr)
+
+    # Zip-based datasets (direct download + extract)
+    for local_name, (hf_id, filename) in DATASETS_DOWNLOAD.items():
+        dest = DATASETS_DIR / local_name
+        if dest.exists() and any(dest.iterdir()):
+            print(f"\n[skip] {local_name} — already exists at {dest}")
+            continue
+        print(f"\n[download] {local_name}  ({hf_id}/{filename})")
+        try:
+            zip_path = hf_hub_download(
+                repo_id=hf_id,
+                filename=filename,
+                repo_type="dataset",
+                local_dir=str(dest),
+            )
+            print(f"  extracting {filename}...")
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(dest)
+            # Remove the zip after extraction
+            Path(zip_path).unlink(missing_ok=True)
+            print(f"  -> OK  ({fmt_size(dir_size_mb(dest))})")
         except Exception as exc:
             print(f"  !! FAILED: {exc}", file=sys.stderr)
 
@@ -149,7 +235,10 @@ def print_disk_usage() -> None:
 
     if DATASETS_DIR.exists():
         total_ds = 0.0
-        for name in sorted(DATASETS):
+        all_dataset_names = sorted(
+            set(DATASETS) | set(DATASETS_SPLIT) | set(DATASETS_SNAPSHOT) | set(DATASETS_DOWNLOAD)
+        )
+        for name in all_dataset_names:
             p = DATASETS_DIR / name
             if p.exists():
                 sz = dir_size_mb(p)

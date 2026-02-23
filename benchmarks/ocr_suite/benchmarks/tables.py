@@ -147,48 +147,27 @@ def _clean_predicted_html(raw: str) -> str:
 def _load_dataset(dataset_dir: Path) -> list[dict]:
     """Load PubTabNet validation samples.
 
-    Strategy:
-    1. Try ``load_from_disk(dataset_dir)`` for a pre-saved HF dataset.
-    2. Fall back to ``load_dataset("ajimeno/PubTabNet", split="val")``.
+    Loads from a ``save_to_disk`` formatted dataset (apoidea/pubtabnet-html).
 
     Returns a list of sample dicts.
     """
-    from datasets import load_dataset, load_from_disk  # type: ignore[import-untyped]
+    from datasets import load_from_disk  # type: ignore[import-untyped]
 
     dataset_dir = Path(dataset_dir)
 
-    # Attempt 1: load from disk (pre-cached).
-    try:
-        logger.info("Attempting load_from_disk(%s)", dataset_dir)
-        ds = load_from_disk(str(dataset_dir))
-        # If it's a DatasetDict, pick the val split (or first available).
-        if hasattr(ds, "keys"):
-            if "val" in ds:
-                ds = ds["val"]
-            elif "validation" in ds:
-                ds = ds["validation"]
-            else:
-                # Take the first split.
-                first_key = next(iter(ds.keys()))
-                logger.warning(
-                    "No 'val' split found in saved dataset, using '%s'",
-                    first_key,
-                )
-                ds = ds[first_key]
-        logger.info("Loaded %d samples from disk", len(ds))
-        return list(ds)
-    except Exception as exc:
-        logger.info("load_from_disk failed (%s), falling back to HF download", exc)
-
-    # Attempt 2: download from HuggingFace.
-    logger.info("Downloading ajimeno/PubTabNet val split from HuggingFace")
-    ds = load_dataset(
-        "ajimeno/PubTabNet",
-        split="val",
-        cache_dir=str(dataset_dir),
-        trust_remote_code=True,
-    )
-    logger.info("Downloaded %d samples", len(ds))
+    logger.info("Loading PubTabNet from %s", dataset_dir)
+    ds = load_from_disk(str(dataset_dir))
+    # If it's a DatasetDict, pick the val/validation split.
+    if hasattr(ds, "keys"):
+        for key in ("val", "validation"):
+            if key in ds:
+                ds = ds[key]
+                break
+        else:
+            first_key = next(iter(ds.keys()))
+            logger.warning("No val split found, using '%s'", first_key)
+            ds = ds[first_key]
+    logger.info("Loaded %d samples from disk", len(ds))
     return list(ds)
 
 
@@ -315,9 +294,16 @@ def run(
             })
             continue
 
-        # -- reconstruct ground truth HTML -----------------------------------
+        # -- get ground truth HTML --------------------------------------------
         try:
-            gt_html = _reconstruct_html(sample)
+            # Prefer pre-rendered html_table (apoidea/pubtabnet-html format)
+            if "html_table" in sample and sample["html_table"]:
+                gt_html = sample["html_table"]
+                # Ensure it has the wrapper TEDS expects
+                if "<html>" not in gt_html.lower():
+                    gt_html = f"<html><body>{gt_html}</body></html>"
+            else:
+                gt_html = _reconstruct_html(sample)
         except Exception as exc:
             logger.warning("Failed to reconstruct GT HTML for sample %d: %s", idx, exc)
             errors += 1

@@ -7,6 +7,7 @@
 #     "table-recognition-metric",
 #     "datasets",
 #     "huggingface-hub",
+#     "Pillow",
 # ]
 # ///
 """OCR Benchmark Suite — Runner.
@@ -200,11 +201,12 @@ def _run_unimer(client, model, results_dir, limit, resume):
 
     dataset_dir = None
     candidates = [
+        DATASETS_DIR / "unimer-test" / "UniMER-Test",
         REPOS_DIR / "UniMERNet" / "data" / "UniMER-Test",
         DATASETS_DIR / "unimer-test",
     ]
     for c in candidates:
-        if c.is_dir():
+        if c.is_dir() and any(c.iterdir()):
             dataset_dir = c
             break
 

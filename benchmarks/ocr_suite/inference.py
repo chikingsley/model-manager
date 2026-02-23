@@ -62,8 +62,9 @@ def detect_model(client: OpenAI) -> str:
 def run_inference(
     client: OpenAI,
     model: str,
-    image_path: Path,
     prompt: str,
+    image_path: Path | None = None,
+    image_bytes: bytes | None = None,
     max_tokens: int = 512,
     temperature: float = 0.0,
 ) -> InferenceResult:
@@ -72,8 +73,11 @@ def run_inference(
     Args:
         client: OpenAI SDK client configured with the target base_url.
         model: Model name/ID to use for the completion.
-        image_path: Path to the image file on disk.
         prompt: Text prompt to send alongside the image.
+        image_path: Path to the image file on disk (mutually exclusive
+            with *image_bytes*).
+        image_bytes: Raw image bytes, assumed PNG (mutually exclusive
+            with *image_path*).
         max_tokens: Maximum tokens in the response.
         temperature: Sampling temperature.
 
@@ -82,8 +86,14 @@ def run_inference(
         and an error string (None on success).
     """
     try:
-        b64 = encode_image_base64(image_path)
-        mime = _get_mime_type(image_path)
+        if image_bytes is not None:
+            b64 = base64.b64encode(image_bytes).decode("utf-8")
+            mime = "image/png"
+        elif image_path is not None:
+            b64 = encode_image_base64(image_path)
+            mime = _get_mime_type(image_path)
+        else:
+            raise ValueError("Either image_path or image_bytes must be provided")
         data_url = f"data:{mime};base64,{b64}"
 
         t0 = time.monotonic()
