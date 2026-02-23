@@ -1,0 +1,39 @@
+services:
+  nemotron-parse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nemotron-parse
+    restart: unless-stopped
+    ports:
+      - "${NEMOTRON_PORT:-8097}:8097"
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
+      - NEMOTRON_MODEL_ID=${NEMOTRON_MODEL_ID:-nvidia/NVIDIA-Nemotron-Parse-v1.2}
+      - NEMOTRON_DEVICE=${NEMOTRON_DEVICE:-cuda}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - /home/simon/.cache/huggingface:/root/.cache/huggingface
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:8097/health | python -c \"import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get('status')=='ok' else 1)\"",
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"

@@ -278,8 +278,16 @@ def build_vllm_env(
     max_model_len: int = 32768,
     gpu_memory_utilization: float = 0.90,
     extra_env: dict[str, str] | None = None,
+    image: str | None = None,
+    dockerfile: str | None = None,
+    pythonpath: str | None = None,
 ) -> dict[str, str]:
-    """Build a complete .env file for vLLM docker-compose."""
+    """Build a complete .env file for vLLM docker-compose.
+
+    Parameters ``image``, ``dockerfile`` and ``pythonpath`` allow callers to
+    select a non-default Docker image / build context (e.g. Nemotron Parse
+    needs ``Dockerfile.nemotron`` and its own image tag).
+    """
     env = {
         "MODEL": model,
         "MAX_MODEL_LEN": str(max_model_len),
@@ -288,6 +296,13 @@ def build_vllm_env(
         **runtime.env,
         "EXTRA_ARGS": " ".join(runtime.flags),
     }
+
+    if image:
+        env["VLLM_IMAGE"] = image
+    if dockerfile:
+        env["VLLM_DOCKERFILE"] = dockerfile
+    if pythonpath:
+        env["VLLM_PYTHONPATH"] = pythonpath
 
     if extra_env:
         env.update(extra_env)

@@ -70,7 +70,7 @@ mm                  # Show status
 mm voice            # Activate voice stack (nemotron)
 mm llama [model]    # Activate llama.cpp (GGUF models)
 mm ollama [model]   # Activate Ollama
-mm ocr [model]      # Activate OCR via vLLM (default: DeepSeek-OCR-2)
+mm ocr [model]      # Activate OCR via vLLM (default: DeepSeek-OCR-2, also: GLM-OCR, Nemotron Parse)
 mm chat [model]     # Activate vLLM chat
 mm perf [model]     # MAX PERFORMANCE mode (all optimizations)
 mm embed            # Activate embeddings
@@ -146,6 +146,7 @@ curl -s http://localhost:8095/segment \
 ```
 
 Notes:
+
 - `GET /docs` is the main Swagger page to share with teammates/agents.
 - `GET /capabilities/ocr` returns the currently documented heavy-OCR concurrency envelope (including failure breakpoint data).
 - `GET /llms.txt` and `GET /llms-full.txt` are model-facing docs endpoints for agent discovery.

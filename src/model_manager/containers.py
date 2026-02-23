@@ -30,10 +30,12 @@ logger = logging.getLogger(__name__)
 
 ContainerName = Literal[
     "nemotron",
+    "nemotron-parse",
     "vllm",
     "sam3",
     "llama-server",
     "ollama",
+    "pronunciation-lab",
     "voice-tunnel",
     "vllm-tunnel",
     "llama-tunnel",
@@ -99,8 +101,10 @@ class ServiceStatus:
 
 VLLM_DIR = Path("/home/simon/docker/model-manager/backends/vllm")
 SAM3_DIR = Path("/home/simon/docker/model-manager/backends/sam3")
+NEMOTRON_PARSE_DIR = Path("/home/simon/docker/model-manager/backends/nemotron-parse")
 LLAMA_DIR = Path("/home/simon/docker/model-manager/backends/llama")
 OLLAMA_DIR = Path("/home/simon/docker/model-manager/backends/ollama")
+PRONUNCIATION_LAB_DIR = Path("/home/simon/github/episodic/pronunciation-experiment")
 MODELS_DIR = Path("/home/simon/docker/model-manager/backends/llama/models")
 
 
@@ -583,6 +587,18 @@ def get_running_services() -> list[ServiceStatus]:
             )
         )
 
+    if is_running("nemotron-parse"):
+        services.append(
+            ServiceStatus(
+                name="nemotron-parse",
+                running=True,
+                healthy=get_health("nemotron-parse"),
+                model="nvidia/NVIDIA-Nemotron-Parse-v1.2",
+                port=8097,
+                endpoint="http://localhost:8097",
+            )
+        )
+
     if is_running("llama-server"):
         env = get_llama_env()
         services.append(
@@ -604,6 +620,18 @@ def get_running_services() -> list[ServiceStatus]:
                 healthy="healthy" if is_running("ollama") else "not_running",
                 port=11434,
                 endpoint="https://ollama.peacockery.studio",
+            )
+        )
+
+    if is_running("pronunciation-lab"):
+        services.append(
+            ServiceStatus(
+                name="pronunciation-lab",
+                running=True,
+                healthy=get_health("pronunciation-lab"),
+                model="Qwen3-ASR-0.6B + ForcedAligner-0.6B",
+                port=7870,
+                endpoint="https://pronunciation.peacockery.studio",
             )
         )
 

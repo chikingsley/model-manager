@@ -1,0 +1,11 @@
+FROM vllm/vllm-openai:nightly
+
+# Runtime deps for Nemotron Parse v1.2 (RADIO encoder, custom image processor).
+RUN pip install --no-cache-dir \
+    addict \
+    matplotlib \
+    einops \
+    easydict \
+    albumentations \
+    timm \
+    open_clip_torch

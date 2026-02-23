@@ -2,8 +2,8 @@ services:
   vllm:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: local/vllm-openai:ocr2-nightly
+      dockerfile: ${VLLM_DOCKERFILE:-Dockerfile}
+    image: ${VLLM_IMAGE:-local/vllm-openai:ocr2-nightly}
     container_name: vllm
     restart: unless-stopped
     dns:
@@ -14,10 +14,13 @@ services:
     volumes:
       - /home/simon/docker/model-manager/backends/vllm/cache:/root/.cache/huggingface
       - /home/simon/docker/model-manager/backends/vllm/vllm-cache:/root/.cache/vllm
+      - /home/simon/docker/model-manager/backends/vllm/nemotron_chat_template.jinja:/opt/chat_template.jinja:ro
+      - /home/simon/docker/model-manager/backends/vllm/nemotron_parse_vllm_logitprocs.py:/vllm-workspace/nemotron_parse_vllm_logitprocs.py:ro
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
       - VLLM_USE_V1=${VLLM_USE_V1:-0}
       - VLLM_ATTENTION_BACKEND=${VLLM_ATTENTION_BACKEND:-FLASH_ATTN}
+      - PYTHONPATH=${VLLM_PYTHONPATH:-}
     command: >
       --model ${MODEL:-Qwen/Qwen2.5-7B-Instruct-AWQ}
       --host 0.0.0.0
@@ -62,4 +65,3 @@ services:
     depends_on:
       vllm:
         condition: service_healthy
-

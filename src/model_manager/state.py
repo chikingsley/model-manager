@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 ModelFormat = Literal["gguf", "awq", "gptq", "safetensors", "exl2"]
 Backend = Literal["llama.cpp", "vllm", "ollama", "sam3", "exllamav2"]
 ModelType = Literal["chat", "embedding", "reranker", "vision"]
-ActiveState = Literal["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "sam3", "none"]
+ActiveState = Literal["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "sam3", "pronunciation", "none"]
 
 
 class ContextSpeedPoint(BaseModel):

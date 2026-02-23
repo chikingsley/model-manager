@@ -17,7 +17,9 @@ from model_manager.config import build_runtime_config, build_vllm_env, load_conf
 from model_manager.containers import (
     LLAMA_DIR,
     MODELS_DIR,
+    NEMOTRON_PARSE_DIR,
     OLLAMA_DIR,
+    PRONUNCIATION_LAB_DIR,
     SAM3_DIR,
     VLLM_DIR,
     compose_up,
@@ -40,7 +42,7 @@ from model_manager.state import ContextSpeedPoint, ModelEntry, StateManager
 # Types
 # ─────────────────────────────────────────────────────────────────────────────
 
-Mode = Literal["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "sam3", "stop"]
+Mode = Literal["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "sam3", "pronunciation", "stop"]
 
 
 @dataclass
@@ -173,7 +175,7 @@ def stop_gpu_services(exclude: list[str] | None = None) -> list[str]:
     exclude = exclude or []
     stopped = []
 
-    gpu_services = ["nemotron", "vllm", "sam3", "llama-server", "ollama"]
+    gpu_services = ["nemotron", "nemotron-parse", "vllm", "sam3", "llama-server", "ollama", "pronunciation-lab"]
 
     for service in gpu_services:
         if service not in exclude and is_running(service):
@@ -516,6 +518,10 @@ class VllmModeConfig:
     extra_args: tuple[str, ...] = ()
     port: int | None = None
     gpu_memory_utilization: float | None = None
+    # Per-model Docker image overrides (multi-version vLLM support).
+    image: str | None = None
+    dockerfile: str | None = None
+    pythonpath: str | None = None
 
 
 def get_vllm_mode_config(
@@ -568,6 +574,9 @@ def get_vllm_mode_config(
                 ),
                 gpu_memory_utilization=0.90,
             )
+
+        # Nemotron Parse uses its own FastAPI backend (not vLLM) — handled
+        # separately in activate() via activate_nemotron_parse().
 
         return VllmModeConfig(
             model=model,
@@ -689,6 +698,9 @@ async def activate_vllm_mode(
         runtime=runtime,
         max_model_len=config.max_model_len,
         gpu_memory_utilization=config.gpu_memory_utilization or 0.90,
+        image=config.image,
+        dockerfile=config.dockerfile,
+        pythonpath=config.pythonpath,
     )
 
     if tunnel_token:
@@ -775,6 +787,101 @@ async def activate_sam3(progress: ProgressCallback | None = None) -> ActivationR
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Nemotron Parse Mode (standalone FastAPI, not vLLM)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def activate_nemotron_parse(progress: ProgressCallback | None = None) -> ActivationResult:
+    """Activate Nemotron Parse v1.2 OCR service (HuggingFace Transformers backend)."""
+
+    def report(step: str, health: str | None = None):
+        if progress:
+            progress(ActivationProgress(step=step, health=health))
+
+    report("Stopping conflicting services...")
+    stop_gpu_services(exclude=["nemotron-parse"])
+    await asyncio.sleep(1)
+
+    report("Starting Nemotron Parse...")
+    if is_running("nemotron-parse"):
+        compose_up(NEMOTRON_PARSE_DIR, "nemotron-parse", recreate=True)
+    else:
+        compose_up(NEMOTRON_PARSE_DIR)
+
+    report("Waiting for model to load...", "starting")
+    healthy = await wait_for_healthy("nemotron-parse", timeout=300)
+
+    if healthy:
+        report("Ready!", "healthy")
+        StateManager().set_active("ocr")
+        return ActivationResult(
+            success=True,
+            mode="ocr",
+            message="Nemotron Parse v1.2 active (Transformers backend)",
+            details={
+                "endpoint": "http://localhost:8097",
+                "model": "nvidia/NVIDIA-Nemotron-Parse-v1.2",
+                "api": "OpenAI-compatible /v1/chat/completions",
+            },
+        )
+    return ActivationResult(
+        success=False,
+        mode="ocr",
+        message="Nemotron Parse started but not healthy",
+        details={"hint": "Check logs with: docker logs nemotron-parse --tail 200"},
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pronunciation Lab Mode
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def activate_pronunciation(progress: ProgressCallback | None = None) -> ActivationResult:
+    """Activate pronunciation assessment lab (Qwen3-ASR + ForcedAligner)."""
+
+    def report(step: str, health: str | None = None):
+        if progress:
+            progress(ActivationProgress(step=step, health=health))
+
+    report("Stopping conflicting services...")
+    stop_gpu_services(exclude=["pronunciation-lab"])
+    await asyncio.sleep(1)
+
+    report("Starting pronunciation lab...")
+    if is_running("pronunciation-lab"):
+        compose_up(PRONUNCIATION_LAB_DIR, "pronunciation-lab", recreate=True)
+    else:
+        compose_up(PRONUNCIATION_LAB_DIR)
+
+    report("Waiting for Gradio to start...", "starting")
+    # No health check configured — poll HTTP instead
+    for _ in range(30):
+        from model_manager.containers import check_http_health
+
+        if await check_http_health("http://localhost:7870/"):
+            report("Ready!", "healthy")
+            StateManager().set_active("pronunciation")
+            return ActivationResult(
+                success=True,
+                mode="pronunciation",
+                message="Pronunciation lab active (Qwen3-ASR + ForcedAligner)",
+                details={
+                    "endpoint": "https://pronunciation.peacockery.studio",
+                    "model": "Qwen3-ASR-0.6B + ForcedAligner-0.6B",
+                },
+            )
+        await asyncio.sleep(2)
+
+    return ActivationResult(
+        success=False,
+        mode="pronunciation",
+        message="Pronunciation lab started but not responding",
+        details={"hint": "Check logs with: docker logs pronunciation-lab --tail 200"},
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main Activation Entry Point
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -809,6 +916,13 @@ async def activate(
 
     if mode == "sam3":
         return await activate_sam3(progress)
+
+    if mode == "pronunciation":
+        return await activate_pronunciation(progress)
+
+    # Nemotron Parse gets its own backend (not vLLM).
+    if mode == "ocr" and model and "nemotron" in model.lower():
+        return await activate_nemotron_parse(progress)
 
     if mode in ("ocr", "chat", "perf", "embed"):
         return await activate_vllm_mode(mode, model, progress)

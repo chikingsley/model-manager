@@ -20,7 +20,7 @@ services:
       - /home/simon/docker/model-manager/results:/results:ro
       - /var/run/docker.sock:/var/run/docker.sock
     command: >
-      python -m uvicorn model_manager.api.server:app --host 0.0.0.0 --port 4001
+      uv run uvicorn model_manager.api.server:app --host 0.0.0.0 --port 4001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
       interval: 30s
