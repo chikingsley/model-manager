@@ -8,6 +8,7 @@ stopping conflicting services, and starting new ones.
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
@@ -437,6 +438,33 @@ async def activate_ollama(
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _is_qwen35_a3b_model(model: str) -> bool:
+    """Detect Qwen3.5 A3B GGUF variants that need reasoning-safe defaults."""
+    name = model.lower()
+    return "qwen3.5-35b-a3b" in name or "qwen3.5-30b-a3b" in name
+
+
+def _apply_llama_model_defaults(model: str, env: dict[str, str]) -> dict[str, str]:
+    """Apply model-specific llama.cpp defaults when activating a model."""
+    if not _is_qwen35_a3b_model(model):
+        return env
+
+    extra = env.get("LLAMA_EXTRA_ARGS", "").strip()
+
+    # Avoid stale no-thinking config from earlier sessions for Qwen reasoning models.
+    extra = re.sub(r"(?:^|\s)--reasoning-budget\s+0(?:\s|$)", " ", extra)
+
+    if "--jinja" not in extra and "--no-jinja" not in extra:
+        extra = f"{extra} --jinja".strip()
+
+    # Keep thinking internal and separated from answer content.
+    if "--reasoning-format" not in extra:
+        extra = f"{extra} --reasoning-format deepseek".strip()
+
+    env["LLAMA_EXTRA_ARGS"] = " ".join(extra.split())
+    return env
+
+
 async def activate_llama(
     model: str | None = None,
     progress: ProgressCallback | None = None,
@@ -469,12 +497,13 @@ async def activate_llama(
     # Update .env with model
     report(f"Configuring {model}...")
     current_env = get_llama_env()
-    tunnel_token = current_env.get("CLOUDFLARE_LLAMA_TOKEN")
     context = current_env.get("CONTEXT", "8192")
 
-    new_env = {"MODEL": model, "CONTEXT": context}
-    if tunnel_token:
-        new_env["CLOUDFLARE_LLAMA_TOKEN"] = tunnel_token
+    # Preserve custom llama tuning knobs in .env while updating selected model.
+    new_env = dict(current_env)
+    new_env["MODEL"] = model
+    new_env["CONTEXT"] = context
+    new_env = _apply_llama_model_defaults(model, new_env)
 
     write_env_file(LLAMA_DIR / ".env", new_env)
 
