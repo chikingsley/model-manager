@@ -349,7 +349,7 @@ def show_benchmarks() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8888) -> None:
+def run_server(host: str = "0.0.0.0", port: int = 4001) -> None:
     """Run the API server."""
     import uvicorn
 
@@ -484,7 +484,7 @@ def main() -> int:
 
     if command == "serve":
         host = args[1] if len(args) > 1 else "0.0.0.0"
-        port = int(args[2]) if len(args) > 2 else 8888
+        port = int(args[2]) if len(args) > 2 else 4001
         run_server(host, port)
         return 0
 

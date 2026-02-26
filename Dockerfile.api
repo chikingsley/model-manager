@@ -36,6 +36,6 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
-EXPOSE 8890
+EXPOSE 4001
 
-CMD ["uv", "run", "uvicorn", "model_manager.api.server:app", "--host", "0.0.0.0", "--port", "8890"]
+CMD ["uv", "run", "uvicorn", "model_manager.api.server:app", "--host", "0.0.0.0", "--port", "4001"]

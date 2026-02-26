@@ -82,7 +82,7 @@ logs-api:
 
 # Run API locally (dev mode with reload)
 dev:
-    uv run uvicorn model_manager.api.server:app --reload --host 0.0.0.0 --port 8890
+    uv run uvicorn model_manager.api.server:app --reload --host 0.0.0.0 --port 4001
 
 # ─── Checks ───────────────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ ps:
 
 # Quick endpoint health check
 health:
-    @curl -sf http://localhost:8890/health && echo "API      ✓" || echo "API      ✗"
+    @curl -sf http://localhost:4001/health && echo "API      ✓" || echo "API      ✗"
     @curl -sf http://localhost:8000/health && echo "vLLM     ✓" || echo "vLLM     ✗"
     @curl -sf http://localhost:8090/health && echo "llama    ✓" || echo "llama    ✗"
     @curl -sf http://localhost:11434/api/tags > /dev/null && echo "Ollama   ✓" || echo "Ollama   ✗"

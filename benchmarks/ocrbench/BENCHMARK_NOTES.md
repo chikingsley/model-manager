@@ -29,6 +29,7 @@
 | lightonai/LightOnOCR-2-1B | 8192 | 0 | 679/1000 | vLLM, 1B model fits easily |
 | lightonai/LightOnOCR-1B-1025 | 8192 | 0 | 586/1000 | vLLM, older v1 model |
 | deepseek-ai/DeepSeek-OCR | 2048 | 0 | 431/1000 | GGUF via llama.cpp |
+| nvidia/Nemotron-Parse-v1.2 | 9000 | 0 | 396/1000 | Custom backend, document parser (not VQA) |
 | mistral-ocr-latest | N/A | 299 | 392/1000 | Mistral API, pure extraction (not VQA) |
 
 ## Models That Failed to Load in vLLM
@@ -155,6 +156,33 @@ docker exec ollama ollama pull glm-ocr
 
 **Strengths**: Dominates VQA tasks (93-97%), excellent text recognition across all types.
 **Weaknesses**: Handwritten math (57%) - GLM-OCR is significantly better here (81%).
+
+---
+
+## NVIDIA Nemotron-Parse v1.2 (Custom Backend)
+
+**Score: 396/1000** — Document parser, not a VQA model. Runs via custom FastAPI backend on port 8097.
+
+Settings: `max_new_tokens=9000`, `repetition_penalty=1.1`, `do_sample=false`, server-side postprocessing via NVIDIA's `postprocessing.py`.
+
+| Category | Score | Max | % |
+|----------|-------|-----|---|
+| Regular Text Recognition | 36 | 50 | 72% |
+| Irregular Text Recognition | 17 | 50 | 34% |
+| Artistic Text Recognition | 2 | 50 | 4% |
+| Handwriting Recognition | 5 | 50 | 10% |
+| Digit String Recognition | 28 | 50 | 56% |
+| Non-Semantic Text Recognition | 47 | 50 | 94% |
+| **Text Recognition Total** | **135** | **300** | **45%** |
+| Scene Text-centric VQA | 44 | 200 | 22% |
+| Doc-oriented VQA | 54 | 200 | 27% |
+| Key Information Extraction | **162** | 200 | **81%** |
+| Handwritten Math Expression | 1 | 100 | 1% |
+
+**Strengths**: Key Information Extraction (81%, beats GLM-OCR's 76%), Non-Semantic Text (94%).
+**Weaknesses**: Not designed for VQA, handwriting, or artistic text. Outputs structured document markdown, not answers to questions.
+
+**Note**: OmniDocBench, UniMER, Tables, KIE benchmarks not completed (run interrupted). 143/1355 OmniDoc predictions saved. Full results in `results/ocr-suite/nvidia_NVIDIA-Nemotron-Parse-v1.2_20260224_202151/`.
 
 ---
 

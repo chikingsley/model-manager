@@ -272,7 +272,7 @@ def run(
             "python-Levenshtein", "apted", "nltk", "mmeval",
             "tqdm", "pandas", "numpy", "pyyaml", "Pillow",
             "scikit-learn", "scipy", "tabulate", "matplotlib",
-            "opencv-python",
+            "opencv-python", "evaluate",
         ]
         cmd = ["uv", "run"]
         for dep in _EVAL_DEPS:

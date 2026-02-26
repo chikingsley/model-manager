@@ -14,6 +14,8 @@ COPY pyproject.toml /app/pyproject.toml
 COPY uv.lock /app/uv.lock
 RUN uv sync --frozen --no-dev --no-install-project
 COPY app.py /app/app.py
+COPY postprocessing.py /app/postprocessing.py
+COPY latex2html.py /app/latex2html.py
 
 EXPOSE 8097
 

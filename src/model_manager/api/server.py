@@ -800,4 +800,4 @@ EXTRA_ARGS=--async-scheduling --num-scheduler-steps 10 --kv-offloading-backend n
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8888)
+    uvicorn.run(app, host="0.0.0.0", port=4001)

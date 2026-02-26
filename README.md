@@ -77,7 +77,7 @@ mm embed            # Activate embeddings
 mm sam3             # Activate SAM3 segmentation service (official Meta SAM3)
 mm stop             # Stop all model services
 mm models           # List available GGUF models
-mm serve            # Start API server (port 8888)
+mm serve            # Start API server (port 4001)
 mm ollama-context <model>  # Test/save Ollama context profile
 mm benchmark run    # Benchmark active model endpoint
 mm benchmark compare  # Compare saved benchmark results
@@ -96,7 +96,7 @@ docker compose -f docker-compose.api.yml up -d --build
 docker compose -f docker-compose.api.yml down
 
 # Local endpoint
-curl http://localhost:8890/health
+curl http://localhost:4001/health
 ```
 
 Endpoints:

@@ -24,8 +24,8 @@ from pathlib import Path
 
 import httpx
 
-API_URL = "http://localhost:8890"
-EXPECTED_PORT = 8890
+API_URL = "http://localhost:4001"
+EXPECTED_PORT = 4001
 TUI_CLIENT_PATH = Path(__file__).parent.parent / "tui" / "src" / "lib" / "mm.ts"
 
 

@@ -3,6 +3,12 @@
 Wraps the HuggingFace Transformers model in an OpenAI-compatible
 chat completions API so it works with the benchmark suite, model-manager,
 and any OpenAI SDK client.
+
+Inference settings and postprocessing follow NVIDIA's official examples:
+- HF model card: https://huggingface.co/nvidia/NVIDIA-Nemotron-Parse-v1.2
+- generation_config.json: max_new_tokens=9000, repetition_penalty=1.1, do_sample=false
+- postprocessing.py: extract_classes_bboxes() + postprocess_text()
+- latex2html.py: LaTeX table -> HTML conversion for TEDS scoring
 """
 
 from __future__ import annotations
@@ -11,6 +17,7 @@ import base64
 import io
 import logging
 import os
+import re
 import time
 import uuid
 
@@ -18,6 +25,8 @@ import torch
 from fastapi import FastAPI, HTTPException
 from PIL import Image
 from pydantic import BaseModel, Field
+
+from postprocessing import extract_classes_bboxes, postprocess_text
 
 logger = logging.getLogger("nemotron-parse")
 logging.basicConfig(level=logging.INFO)
@@ -27,9 +36,10 @@ DEVICE = os.getenv("NEMOTRON_DEVICE", "cuda" if torch.cuda.is_available() else "
 PORT = int(os.getenv("NEMOTRON_PORT", "8097"))
 
 # Nemotron Parse uses special token sequences, not natural language prompts.
+# Source: HF model card "Usage" section
 DEFAULT_PROMPT = "</s><s><predict_bbox><predict_classes><output_markdown><predict_no_text_in_pic>"
 
-app = FastAPI(title="nemotron-parse", version="0.1.0")
+app = FastAPI(title="nemotron-parse", version="0.2.0")
 
 _model = None
 _processor = None
@@ -118,8 +128,12 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     model: str = MODEL_ID
     messages: list[ChatMessage]
-    max_tokens: int = Field(default=4096, ge=1, le=9000)
+    # Source: generation_config.json has max_new_tokens=9000
+    max_tokens: int = Field(default=9000, ge=1, le=9000)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    # When True, run NVIDIA's postprocessing to return clean markdown.
+    # When False, return raw structured output with bounding box tokens.
+    postprocess: bool = Field(default=True)
 
 
 def _extract_image_and_prompt(messages: list[ChatMessage]) -> tuple[Image.Image | None, str]:
@@ -150,6 +164,54 @@ def _extract_image_and_prompt(messages: list[ChatMessage]) -> tuple[Image.Image 
     return image, prompt
 
 
+def _postprocess_output(raw_text: str) -> str:
+    """Run NVIDIA's official postprocessing pipeline on raw model output.
+
+    Source: postprocessing.py from HF repo
+    https://huggingface.co/nvidia/NVIDIA-Nemotron-Parse-v1.2/blob/main/postprocessing.py
+
+    1. extract_classes_bboxes() — parses <x_..><y_..>text<x_..><y_..><class_..>
+    2. postprocess_text() — formats tables (LaTeX→HTML), cleans markdown
+    3. Join all text blocks in reading order
+    """
+    try:
+        classes, _bboxes, texts = extract_classes_bboxes(raw_text)
+    except AssertionError:
+        # extract_classes_bboxes asserts "Page-number" not in classes;
+        # fall back to regex-only extraction if that fires
+        logger.warning("postprocessing assertion failed, falling back to raw extraction")
+        return _fallback_extract(raw_text)
+
+    if not texts:
+        return _fallback_extract(raw_text)
+
+    processed = []
+    for text, cls in zip(texts, classes):
+        # table_format='HTML' so TEDS scorer gets proper HTML tables
+        # Source: HF model card postprocessing example
+        cleaned = postprocess_text(
+            text, cls=cls, table_format="HTML", text_format="markdown",
+        )
+        if cleaned.strip():
+            processed.append(cleaned.strip())
+
+    return "\n\n".join(processed)
+
+
+def _fallback_extract(raw_text: str) -> str:
+    """Fallback: strip coordinate tokens, return whatever text remains."""
+    pattern = re.compile(
+        r"<x_[\d.]+><y_[\d.]+>(.*?)<x_[\d.]+><y_[\d.]+><class_[^>]+>",
+        re.DOTALL,
+    )
+    matches = pattern.findall(raw_text)
+    if matches:
+        return "\n".join(m.strip() for m in matches if m.strip())
+    # Last resort: strip all <...> tokens
+    text = re.sub(r"<[^>]+>", " ", raw_text).strip()
+    return re.sub(r"\s+", " ", text)
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(req: ChatRequest) -> dict:
     if _load_error:
@@ -162,6 +224,7 @@ async def chat_completions(req: ChatRequest) -> dict:
         raise HTTPException(status_code=400, detail="No image found in messages")
 
     # Always use the model's internal prompt format.
+    # Source: HF model card "Usage" section — natural language prompts are ignored.
     prompt = DEFAULT_PROMPT
 
     t0 = time.monotonic()
@@ -177,7 +240,16 @@ async def chat_completions(req: ChatRequest) -> dict:
                 max_new_tokens=req.max_tokens,
             )
 
-        text = _processor.batch_decode(outputs, skip_special_tokens=True)[0]
+        # Source: HF model card example uses skip_special_tokens=True.
+        # Coordinate tokens (<x_...>, <y_...>, <class_...>) are NOT marked
+        # as special in the tokenizer (special=False), so they survive.
+        # Only <s>, </s>, <pad>, <unk> are stripped.
+        raw_text = _processor.batch_decode(outputs, skip_special_tokens=True)[0]
+
+        if req.postprocess:
+            text = _postprocess_output(raw_text)
+        else:
+            text = raw_text
     except Exception as exc:
         import traceback
         logger.error("Inference error:\n%s", traceback.format_exc())

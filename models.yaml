@@ -328,6 +328,50 @@ models:
     bench_p95_ms: 13.3
     bench_date: '2026-02-17'
     benchmarked: true
+  ollama-glm-ocr:
+    source: ollama
+    backend: ollama
+    type: chat
+    vram_estimate: 8.4
+    notes: 'Auto-tested: max 65,536, using 49,152'
+    model: glm-ocr
+    num_ctx: 49152
+    tested_num_ctx: 65536
+    claimed_num_ctx: 131072
+    context_tested: true
+    benchmarked: false
+    context_profile:
+    - num_ctx: 4096
+      tok_s: 378.6
+      ttft_ms: 56.0
+      vram_mb: 3802
+    - num_ctx: 8192
+      tok_s: 367.1
+      ttft_ms: 66.0
+      vram_mb: 4056
+    - num_ctx: 16384
+      tok_s: 363.7
+      ttft_ms: 93.0
+      vram_mb: 4568
+    - num_ctx: 32768
+      tok_s: 376.8
+      ttft_ms: 65.0
+      vram_mb: 5592
+    - num_ctx: 65536
+      tok_s: 331.5
+      ttft_ms: 61.0
+      vram_mb: 8636
+  llama-cpp-qwen3.5-35b-a3b-q4-k-m:
+    source: Qwen3.5-35B-A3B-Q4_K_M.gguf
+    backend: llama.cpp
+    type: chat
+    context_tested: false
+    bench_tok_s: 4.8
+    bench_ttft_ms: 0.0
+    bench_itl_ms: 18.5
+    bench_p95_ms: 22.0
+    bench_date: '2026-02-25'
+    benchmarked: true
 setups:
   voice:
     description: 'Voice stack (nemotron: LLM + ASR + TTS)'
@@ -363,4 +407,4 @@ setups:
     type: ollama
     num_ctx: 262144
 state:
-  active: ollama
+  active: llama

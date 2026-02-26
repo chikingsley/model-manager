@@ -9,9 +9,9 @@ cd /home/simon/docker/model-manager
 docker compose -f docker-compose.api.yml up -d --build
 ```
 
-- Swagger UI: `http://localhost:8890/docs`
-- ReDoc: `http://localhost:8890/redoc`
-- OpenAPI JSON: `http://localhost:8890/openapi.json`
+- Swagger UI: `http://localhost:4001/docs`
+- ReDoc: `http://localhost:4001/redoc`
+- OpenAPI JSON: `http://localhost:4001/openapi.json`
 
 These are auto-generated from FastAPI and should be treated as the canonical contract for integrations.
 
@@ -61,7 +61,7 @@ Use these as operating guidance, not hard universal limits. Re-run sweeps when m
 Use a dedicated subdomain for this API and map it to the API service port.
 
 - Recommended host: `mm.<your-domain>`
-- Recommended target: `http://localhost:8890`
+- Recommended target: `http://localhost:4001`
 - Recommended public entrypoints:
   - `/docs` for humans
   - `/openapi.json` for tooling

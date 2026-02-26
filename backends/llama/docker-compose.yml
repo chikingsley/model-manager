@@ -12,7 +12,10 @@ services:
       --port 8080
       -m /models/${MODEL:-Ministral-3-14B-Instruct-2512-Q4_K_M.gguf}
       -c ${CONTEXT:-8192}
-      -ngl 99
+      -ngl ${N_GPU_LAYERS:-99}
+      -ctk ${CACHE_TYPE_K:-q8_0}
+      -ctv ${CACHE_TYPE_V:-q8_0}
+      ${LLAMA_EXTRA_ARGS:-}
     deploy:
       resources:
         reservations:
@@ -26,4 +29,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
