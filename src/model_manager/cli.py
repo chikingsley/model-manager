@@ -379,6 +379,7 @@ def show_help() -> None:
     print("  mm embed                          Activate embeddings")
     print("  mm sam3                           Activate SAM3 segmentation service")
     print("  mm pronunciation                  Activate pronunciation lab (Qwen3-ASR)")
+    print("  mm peacock                        Reserve GPU for peacock-asr (gopt-bench)")
     print("  mm stop                           Stop all model services")
     print("  mm models                         List GGUF models")
     print("  mm serve [host] [port]            Start API server")
@@ -519,6 +520,9 @@ def main() -> int:
         "sam": "sam3",
         "pronunciation": "pronunciation",
         "pron": "pronunciation",
+        "peacock": "peacock",
+        "gop": "peacock",
+        "asr": "peacock",
         "stop": "stop",
     }
 

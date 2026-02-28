@@ -43,7 +43,7 @@ from model_manager.state import ContextSpeedPoint, ModelEntry, StateManager
 # Types
 # ─────────────────────────────────────────────────────────────────────────────
 
-Mode = Literal["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "sam3", "pronunciation", "stop"]
+Mode = Literal["voice", "llama", "ollama", "ocr", "chat", "perf", "embed", "sam3", "pronunciation", "peacock", "stop"]
 
 
 @dataclass
@@ -911,6 +911,39 @@ async def activate_pronunciation(progress: ProgressCallback | None = None) -> Ac
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Peacock ASR Mode (batch GPU job — no container)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def activate_peacock(progress: ProgressCallback | None = None) -> ActivationResult:
+    """Activate peacock-asr mode (pronunciation assessment benchmark).
+
+    This is a batch job mode — no Docker container. It just frees GPU VRAM
+    so gopt-bench can run with --device cuda.
+    """
+
+    def report(step: str, health: str | None = None):
+        if progress:
+            progress(ActivationProgress(step=step, health=health))
+
+    report("Stopping conflicting services...")
+    stopped = stop_gpu_services()
+    await asyncio.sleep(1)
+
+    report("GPU ready for peacock-asr!", "healthy")
+    StateManager().set_active("peacock")
+    return ActivationResult(
+        success=True,
+        mode="peacock",
+        message="GPU reserved for peacock-asr (pronunciation benchmark)",
+        details={
+            "stopped": stopped,
+            "usage": "uv run gopt-bench -v run --backend original --feats --device cuda",
+        },
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main Activation Entry Point
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -948,6 +981,9 @@ async def activate(
 
     if mode == "pronunciation":
         return await activate_pronunciation(progress)
+
+    if mode == "peacock":
+        return await activate_peacock(progress)
 
     # Nemotron Parse gets its own backend (not vLLM).
     if mode == "ocr" and model and "nemotron" in model.lower():
